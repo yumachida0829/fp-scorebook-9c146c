@@ -1,0 +1,1176 @@
+<!doctype html>
+<html lang='ja'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<meta name='robots' content='noindex, nofollow'>
+</head>
+<body>
+<title>野球スコアブック</title>
+<style>
+:root {
+  --bg: #FAFAF7;
+  --surface: #FFFFFF;
+  --surface2: #F1F3EE;
+  --ink: #1C2420;
+  --ink2: #57625B;
+  --ink3: #8A948D;
+  --line: #E2E6DF;
+  --accent: #2E7D50;
+  --accent-soft: #E3EFE8;
+  --on-accent: #FFFFFF;
+  --hit: #2E7D50;
+  --xbh: #B07E14;
+  --out: #3D68AF;
+  --danger: #B03A2E;
+  --board: #1B3A2A;
+  --board-ink: #F3F6EF;
+  --board-line: #2C543E;
+  --shadow: 0 1px 3px rgba(28,36,32,.08);
+  --font-num: "DIN Alternate", "Bahnschrift", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :where(:root) {
+    --bg: #15201A;
+    --surface: #1D2B23;
+    --surface2: #23342A;
+    --ink: #ECF2EC;
+    --ink2: #A3B4A8;
+    --ink3: #75857A;
+    --line: #2C3B31;
+    --accent: #37A278;
+    --accent-soft: #24402F;
+    --on-accent: #0C1811;
+    --hit: #37A278;
+    --xbh: #C08A2A;
+    --out: #5E8BD6;
+    --danger: #E07A6E;
+    --board: #101B14;
+    --board-ink: #E8F0E6;
+    --board-line: #24402F;
+    --shadow: 0 1px 3px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15201A;
+  --surface: #1D2B23;
+  --surface2: #23342A;
+  --ink: #ECF2EC;
+  --ink2: #A3B4A8;
+  --ink3: #75857A;
+  --line: #2C3B31;
+  --accent: #37A278;
+  --accent-soft: #24402F;
+  --on-accent: #0C1811;
+  --hit: #37A278;
+  --xbh: #C08A2A;
+  --out: #5E8BD6;
+  --danger: #E07A6E;
+  --board: #101B14;
+  --board-ink: #E8F0E6;
+  --board-line: #24402F;
+  --shadow: 0 1px 3px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #FAFAF7;
+  --surface: #FFFFFF;
+  --surface2: #F1F3EE;
+  --ink: #1C2420;
+  --ink2: #57625B;
+  --ink3: #8A948D;
+  --line: #E2E6DF;
+  --accent: #2E7D50;
+  --accent-soft: #E3EFE8;
+  --on-accent: #FFFFFF;
+  --hit: #2E7D50;
+  --xbh: #B07E14;
+  --out: #3D68AF;
+  --danger: #B03A2E;
+  --board: #1B3A2A;
+  --board-ink: #F3F6EF;
+  --board-line: #2C543E;
+  --shadow: 0 1px 3px rgba(28,36,32,.08);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Noto Sans JP", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; font-size: 15px; color: var(--ink); }
+
+/* ── scoreboard header ── */
+header.board {
+  background: var(--board);
+  color: var(--board-ink);
+  padding: 14px 16px 10px;
+  border-bottom: 3px solid var(--accent);
+}
+header.board .board-top { display: flex; align-items: baseline; gap: 10px; max-width: 860px; margin: 0 auto; }
+header.board .app-label { font-size: 11px; letter-spacing: .18em; opacity: .7; }
+header.board h1 { font-size: 19px; margin: 0; font-weight: 700; letter-spacing: .02em; }
+header.board .season { margin-left: auto; font-family: var(--font-num); font-size: 13px; opacity: .75; letter-spacing: .08em; }
+
+nav.tabs {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--board);
+  border-bottom: 1px solid var(--board-line);
+  display: flex; justify-content: center; gap: 0;
+}
+nav.tabs .tabs-inner { display: flex; max-width: 860px; width: 100%; }
+nav.tabs button {
+  flex: 1; background: none; border: none; color: var(--board-ink);
+  padding: 10px 4px 8px; font-size: 13px; font-weight: 600; opacity: .62;
+  border-bottom: 3px solid transparent;
+}
+nav.tabs button.active { opacity: 1; border-bottom-color: var(--accent); }
+nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+main { max-width: 860px; margin: 0 auto; padding: 16px 14px 90px; }
+
+/* ── common ── */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 14px; }
+.card h2 { font-size: 13px; letter-spacing: .12em; color: var(--ink2); margin: 0 0 10px; font-weight: 700; }
+.card h2 .h2-runs { margin-left: 8px; color: var(--accent); letter-spacing: 0; }
+table.line-score { border-collapse: collapse; font-size: 13.5px; min-width: 220px; }
+table.line-score th, table.line-score td { padding: 3px 9px; text-align: center; font-family: var(--font-num); font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--line); }
+table.line-score th { color: var(--ink3); font-size: 11px; font-weight: 600; }
+table.line-score td.ls-team { font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--ink2); text-align: left; padding-left: 0; white-space: nowrap; }
+table.line-score .ls-total { font-weight: 700; font-size: 15px; border-left: 1px solid var(--line); }
+table.line-score .ls-stat { color: var(--ink3); font-size: 12px; }
+.eyebrow { font-size: 11px; letter-spacing: .15em; color: var(--ink3); font-weight: 600; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 600;
+}
+.btn:hover { background: var(--surface2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: none; }
+.btn.small { padding: 4px 10px; font-size: 12.5px; }
+.btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a.link { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+/* stat tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 8px; }
+.tile .t-label { font-size: 11px; letter-spacing: .1em; color: var(--ink2); font-weight: 600; }
+.tile .t-value { font-family: var(--font-num); font-size: 27px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tile .t-sub { font-size: 11px; color: var(--ink3); }
+
+/* table */
+.tbl-wrap { overflow-x: auto; }
+table.stats { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13.5px; }
+table.stats th, table.stats td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.stats th { color: var(--ink2); font-size: 11.5px; letter-spacing: .06em; font-weight: 600; position: sticky; top: 0; background: var(--surface); cursor: pointer; user-select: none; }
+table.stats th.sorted { color: var(--accent); }
+table.stats th:first-child, table.stats td:first-child { text-align: left; }
+table.stats td { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+table.stats td.name { font-family: inherit; font-weight: 600; }
+table.stats tr.rowlink { cursor: pointer; }
+table.stats tr.rowlink:hover td { background: var(--surface2); }
+
+/* chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 999px; padding: 6px 13px; font-size: 13.5px; font-weight: 600;
+}
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chip.res-hit.on { background: var(--hit); border-color: var(--hit); }
+.chip.res-out.on { background: var(--out); border-color: var(--out); color: #fff; }
+.chip.res-xbh.on { background: var(--xbh); border-color: var(--xbh); color: #fff; }
+
+/* PA log */
+.pa-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.pa-row:last-child { border-bottom: none; }
+.pa-inning { font-family: var(--font-num); color: var(--ink3); width: 34px; flex: none; text-align: right; }
+.pa-name { font-weight: 600; min-width: 90px; }
+.badge {
+  display: inline-block; border-radius: 5px; padding: 1px 8px; font-size: 12.5px; font-weight: 700;
+  background: var(--surface2); color: var(--ink2); flex: none;
+}
+.badge.b-hit { background: var(--hit); color: var(--on-accent); }
+.badge.b-xbh { background: var(--xbh); color: #fff; }
+.badge.b-walk { background: var(--accent-soft); color: var(--accent); }
+.pa-detail { color: var(--ink2); font-size: 13px; white-space: nowrap; }
+.pa-note { color: var(--xbh); font-size: 12.5px; flex-basis: 100%; order: 10; margin-left: 44px; line-height: 1.4; }
+.pa-actions { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.icon-btn { border: none; background: none; color: var(--ink3); font-size: 13px; padding: 3px 6px; border-radius: 6px; }
+.icon-btn:hover { background: var(--surface2); color: var(--ink); }
+.icon-btn.del:hover { color: var(--danger); }
+
+/* forms */
+.field { margin-bottom: 12px; }
+.field > label { display: block; font-size: 12px; letter-spacing: .08em; color: var(--ink2); font-weight: 700; margin-bottom: 5px; }
+input[type=text], input[type=date], input[type=number], select, textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  padding: 8px 10px;
+}
+textarea { min-height: 130px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.stepper { display: inline-flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.stepper button { border: none; background: var(--surface2); width: 36px; height: 34px; font-size: 17px; color: var(--ink); }
+.stepper .stepper-v { width: 44px; text-align: center; font-family: var(--font-num); font-size: 16px; }
+.check-row { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* charts */
+.chart-note { font-size: 12px; color: var(--ink3); margin-top: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink2); margin-top: 6px; }
+.legend .li { display: inline-flex; align-items: center; gap: 5px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+svg text { font-family: var(--font-num); fill: var(--ink2); }
+svg .jp { font-family: inherit; }
+.tooltip {
+  position: fixed; z-index: 50; pointer-events: none; display: none;
+  background: var(--ink); color: var(--bg); border-radius: 7px; padding: 5px 10px;
+  font-size: 12.5px; box-shadow: 0 2px 8px rgba(0,0,0,.25); max-width: 240px; line-height: 1.45;
+}
+.tooltip .tt-num { font-family: var(--font-num); }
+
+.empty { color: var(--ink3); text-align: center; padding: 26px 10px; font-size: 14px; }
+.game-row { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.game-row:last-child { border-bottom: none; }
+.game-row:hover { background: var(--surface2); }
+.game-date { font-family: var(--font-num); color: var(--ink2); width: 78px; flex: none; font-size: 13px; }
+.game-vs { font-weight: 700; }
+.game-score { margin-left: auto; font-family: var(--font-num); font-size: 17px; }
+.game-wl { font-size: 11.5px; font-weight: 700; border-radius: 5px; padding: 1px 7px; flex: none; }
+.game-wl.w { background: var(--accent-soft); color: var(--accent); }
+.game-wl.l { background: var(--surface2); color: var(--ink3); }
+.game-wl.d { background: var(--surface2); color: var(--ink2); }
+
+.steps { counter-reset: step; }
+.step { display: flex; gap: 12px; margin-bottom: 14px; }
+.step .n {
+  counter-increment: step; flex: none; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: var(--on-accent); font-family: var(--font-num);
+  display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+}
+.step .n::before { content: counter(step); }
+.step h3 { margin: 1px 0 4px; font-size: 14.5px; }
+.step p { margin: 0; font-size: 13.5px; color: var(--ink2); }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 9px 18px; border-radius: 999px;
+  font-size: 13.5px; font-weight: 600; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  opacity: 0; transition: opacity .25s; z-index: 60; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+.back { margin-bottom: 10px; }
+.hdr-flex { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.hdr-flex .spacer { flex: 1; }
+.subtle { color: var(--ink3); font-size: 12.5px; }
+.import-preview { border: 1px dashed var(--accent); border-radius: 10px; padding: 12px 14px; margin-top: 12px; background: var(--accent-soft); }
+.import-preview h3 { margin: 0 0 6px; font-size: 14.5px; }
+.warn-text { color: var(--xbh); font-weight: 600; font-size: 13px; }
+.err-text { color: var(--danger); font-weight: 600; font-size: 13.5px; white-space: pre-wrap; }
+@media (max-width: 560px) {
+  .row3 { grid-template-columns: 1fr 1fr; }
+  main { padding: 12px 10px 90px; }
+  .pa-name { min-width: 72px; }
+}
+</style>
+
+<header class="board">
+  <div class="board-top">
+    <span class="app-label">SCOREBOOK</span>
+    <h1 id="team-name-h">チーム</h1>
+    <span class="season num" id="season-y"></span>
+  </div>
+</header>
+<nav class="tabs" aria-label="メイン">
+  <div class="tabs-inner">
+    <button data-tab="stats">成績</button>
+    <button data-tab="games">試合</button>
+    <button data-tab="input">打席入力</button>
+    <button data-tab="import">取り込み</button>
+  </div>
+</nav>
+<main id="main"></main>
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ───────────────────────── data ───────────────────────── */
+const LS_KEY = "yakyu-scorebook-v1";
+
+const RESULTS = {
+  "単打":   { cat: "hit",  bases: 1 },
+  "二塁打": { cat: "hit",  bases: 2 },
+  "三塁打": { cat: "hit",  bases: 3 },
+  "本塁打": { cat: "hit",  bases: 4 },
+  "四球":   { cat: "bb" },
+  "死球":   { cat: "hbp" },
+  "三振":   { cat: "out", so: true },
+  "ゴロ":   { cat: "out", batted: true },
+  "フライ": { cat: "out", batted: true },
+  "ライナー": { cat: "out", batted: true },
+  "併殺打": { cat: "out", batted: true },
+  "犠打":   { cat: "sac", batted: true },
+  "犠飛":   { cat: "sf",  batted: true },
+  "失策":   { cat: "roe", batted: true },
+  "野選":   { cat: "fc",  batted: true },
+};
+const RESULT_KEYS = Object.keys(RESULTS);
+const DIRS = ["投","捕","一","二","三","遊","左","中","右"];
+
+let uidSeq = 0;
+const uid = p => p + "_" + Date.now().toString(36) + "_" + (uidSeq++).toString(36);
+
+function sampleData() {
+  // 2026-07-26 紅白戦（林試の森）— 紙スコアブックのAI読み取り結果
+  const players = [
+    "まなと","けんご","じょう","こうや","ありた","しゅうじ","はる","なつき",
+    "りょうたろ","なぎ","きみと","だいち","こうだい","いっさ","いおり","しんのすけ","あき","なおや"
+  ].map((name, i) => ({ id: "p" + (i + 1), name, number: null }));
+  const games = [
+    { id: "g1", date: "2026-07-26", opponent: "紅白戦（林試の森）", scoreFor: 5, scoreAgainst: 4 },
+  ];
+  // [playerIdx(1-18), inning, result, direction, rbi, run, note]
+  const raw = [
+    [1,1,"単打","三",0,1,""],
+    [2,1,"野選","捕",0,1,"要確認: 2FC(捕の野選)と判読"],
+    [3,1,"ゴロ","遊",0,0,"要確認: 6-3。この間の生還なら打点1"],
+    [4,1,"ゴロ","一",0,0,"要確認: 3A。打点の可能性"],
+    [5,1,"三振","",0,0,"要確認: 振り逃げ2-3でアウトと判読"],
+    [6,2,"失策","投",0,1,"1-3Eで出塁と判読"],
+    [7,2,"三振","",0,0,""],
+    [8,2,"ゴロ","投",0,0,"要確認: 1-3。犠打の可能性"],
+    [1,2,"三塁打","左",0,1,""],
+    [2,2,"失策","遊",0,1,"6Eで出塁と判読"],
+    [3,2,"失策","遊",0,0,"要確認: 単打の可能性"],
+    [4,2,"三振","",0,0,"要確認: 2TO(振り逃げタッチアウト?)"],
+    [9,1,"単打","中",0,0,"ライナー性(ℓ/8)"],
+    [10,1,"三振","",0,0,"要確認: 2TO(振り逃げタッチアウト?)"],
+    [11,1,"三振","",0,0,"要確認: 2TO(振り逃げタッチアウト?)"],
+    [12,1,"ゴロ","一",0,0,"3A"],
+    [13,2,"ゴロ","捕",0,0,"要確認: 2-3。バントか振り逃げの可能性"],
+    [14,2,"単打","右",0,1,""],
+    [15,2,"三振","",0,0,""],
+    [16,2,"失策","捕",0,1,"要確認: 振り逃げ+捕手悪送球(2-3E)と判読"],
+    [17,2,"三塁打","右",0,1,""],
+    [9,2,"単打","遊",0,1,"要確認: 方向(/6)"],
+    [10,2,"二塁打","右",0,0,"ライナー性(ℓ/9)"],
+    [11,2,"フライ","二",0,0,"要確認: 二飛と判読"],
+  ];
+  const atBats = raw.map((r, i) => ({
+    id: "g1_ab" + i, gameId: "g1", playerId: "p" + r[0],
+    inning: r[1], result: r[2], direction: r[3], rbi: r[4], run: !!r[5], note: r[6],
+    side: i <= 11 ? "T" : "B", // 紅白戦: 1枚目のチーム=先攻(表)、2枚目=後攻(裏)
+  }));
+  return { teamName: "不動パイレーツEチーム", players, games, atBats, dataRev: DATA_REV };
+}
+
+const DATA_REV = 3;
+function migrate(s) {
+  const rev = s.dataRev || 1;
+  if (rev >= DATA_REV) return s;
+  if (rev < 2) {
+    // v2: 7/26紅白戦の長打修正（保護者確認）。該当行が未編集の場合のみ書き換える
+    const fixes = {
+      g1_ab5:  { was: "単打", result: "失策",   direction: "投", note: "1-3Eで出塁と判読" },
+      g1_ab8:  { was: "単打", result: "三塁打", direction: "左", note: "" },
+      g1_ab20: { was: "野選", result: "三塁打", direction: "右", note: "" },
+      g1_ab22: { was: "単打", result: "二塁打", direction: "右", note: "" },
+    };
+    for (const a of s.atBats || []) {
+      const f = fixes[a.id];
+      if (f && a.result === f.was) { a.result = f.result; a.direction = f.direction; a.note = f.note; }
+    }
+  }
+  if (rev < 3) {
+    // v3: 紅白戦の打席に表/裏を付与（1枚目のチーム=表、2枚目=裏）
+    for (const a of s.atBats || []) {
+      const m = /^g1_ab(\d+)$/.exec(a.id || "");
+      if (m && a.side === undefined) a.side = (+m[1] <= 11) ? "T" : "B";
+    }
+  }
+  s.dataRev = DATA_REV;
+  return s;
+}
+// 表裏で分けて記録された試合か（紅白戦など）
+const isSplitGame = g => !!g && (absOfGame(g.id).some(a => a.side) || (g.opponent || "").includes("紅白戦"));
+const SIDE_LABEL = { T: "表", B: "裏" };
+
+let state = load();
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      // 旧サンプルデータ（架空チーム）が保存されている場合は実データに置き換える
+      if (s && s.teamName === "青葉イーグルス") return sampleData();
+      if (s && s.players && s.games && s.atBats) return migrate(s);
+    }
+  } catch (e) {}
+  return sampleData();
+}
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+
+/* ───────────────────────── stats ───────────────────────── */
+function calcStats(abs) {
+  const s = { pa:0, ab:0, h:0, b1:0, b2:0, b3:0, hr:0, rbi:0, run:0, bb:0, so:0, tb:0, sac:0, sf:0 };
+  for (const a of abs) {
+    const r = RESULTS[a.result]; if (!r) continue;
+    s.pa++;
+    s.rbi += a.rbi || 0;
+    if (a.run) s.run++;
+    if (r.cat === "bb" || r.cat === "hbp") { s.bb++; continue; }
+    if (r.cat === "sac") { s.sac++; continue; }
+    if (r.cat === "sf") { s.sf++; continue; }
+    s.ab++;
+    if (r.so) s.so++;
+    if (r.cat === "hit") {
+      s.h++; s.tb += r.bases;
+      if (r.bases === 1) s.b1++; else if (r.bases === 2) s.b2++;
+      else if (r.bases === 3) s.b3++; else s.hr++;
+    }
+  }
+  s.avg = s.ab ? s.h / s.ab : null;
+  const obpDen = s.ab + s.bb + s.sf;
+  s.obp = obpDen ? (s.h + s.bb) / obpDen : null;
+  s.slg = s.ab ? s.tb / s.ab : null;
+  s.ops = (s.obp !== null && s.slg !== null) ? s.obp + s.slg : null;
+  return s;
+}
+const fmtRate = v => v === null ? "—" : (v >= 1 ? v.toFixed(3) : v.toFixed(3).replace(/^0/, ""));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const gameOf = id => state.games.find(g => g.id === id);
+const playerOf = id => state.players.find(p => p.id === id);
+const sortedGames = () => [...state.games].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+const absOfGame = gid => state.atBats.filter(a => a.gameId === gid);
+const absOfPlayer = pid => state.atBats.filter(a => a.playerId === pid);
+const fmtDate = d => d ? d.replace(/^\d{4}-/, "").replace("-", "/") : "";
+// 紅白戦など対外試合でないものは「vs」を付けない
+const vsLabel = opp => { const o = String(opp || "不明"); return o.includes("紅白戦") ? o : "vs " + o; };
+
+function resultBadgeClass(res) {
+  const r = RESULTS[res]; if (!r) return "";
+  if (r.cat === "hit") return r.bases >= 2 ? "b-xbh" : "b-hit";
+  if (r.cat === "bb" || r.cat === "hbp") return "b-walk";
+  return "";
+}
+
+/* ───────────────────────── router ───────────────────────── */
+let route = { tab: "stats", playerId: null, gameId: null, editAbId: null };
+const $ = sel => document.querySelector(sel);
+function go(patch) { route = { ...route, ...patch }; render(); window.scrollTo(0, 0); }
+
+function showToast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(showToast._h); showToast._h = setTimeout(() => t.classList.remove("show"), 1900);
+}
+
+/* tooltip */
+const tt = $("#tooltip");
+function bindTooltips(root) {
+  root.querySelectorAll("[data-tt]").forEach(el => {
+    el.addEventListener("mouseenter", e => { tt.innerHTML = el.dataset.tt; tt.style.display = "block"; moveTT(e); });
+    el.addEventListener("mousemove", moveTT);
+    el.addEventListener("mouseleave", () => { tt.style.display = "none"; });
+  });
+}
+function moveTT(e) {
+  const pad = 14;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  const r = tt.getBoundingClientRect();
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - pad;
+  tt.style.left = x + "px"; tt.style.top = y + "px";
+}
+
+/* ───────────────────────── charts ───────────────────────── */
+const FIELD_POS = {
+  "投": [200, 300], "捕": [200, 352],
+  "一": [272, 282], "二": [238, 246], "遊": [162, 246], "三": [128, 282],
+  "左": [110, 192], "中": [200, 138], "右": [290, 192],
+};
+function sprayChartSVG(abs) {
+  const batted = abs.filter(a => {
+    const r = RESULTS[a.result];
+    return r && (r.cat === "hit" || r.batted) && FIELD_POS[a.direction];
+  });
+  const counts = {};
+  // draw outs first so hit marks (and HR labels) stay on top
+  const zOrder = a => { const r = RESULTS[a.result]; return r.cat === "hit" ? 1 : 0; };
+  batted.sort((a, b) => zOrder(a) - zOrder(b));
+  const marks = batted.map(a => {
+    const key = a.direction;
+    const idx = counts[key] = (counts[key] || 0) + 1;
+    const [bx, by] = FIELD_POS[key];
+    // deterministic ring layout around the position for multiple balls
+    let x = bx, y = by;
+    if (idx > 1) {
+      const ring = Math.floor((idx - 2) / 6), slot = (idx - 2) % 6;
+      const ang = slot * Math.PI / 3 + ring * 0.5, rad = 13 + ring * 11;
+      x = bx + rad * Math.cos(ang); y = by + rad * Math.sin(ang);
+    }
+    const r = RESULTS[a.result];
+    const g = gameOf(a.gameId);
+    const label = `${g ? fmtDate(g.date) : ""} ${a.inning}回 ${esc(a.result)}（${esc(a.direction)}）`;
+    let cls = "spray-out", shape;
+    if (r.cat === "hit" && r.bases >= 2) {
+      shape = `<circle cx="${x}" cy="${y}" r="6.5" fill="var(--xbh)" stroke="var(--surface)" stroke-width="2" data-tt="${label}"/>` +
+        (r.bases === 4 ? `<text x="${x}" y="${y - 11}" text-anchor="middle" font-size="10" font-weight="bold" fill="var(--xbh)" stroke="var(--surface)" stroke-width="3" paint-order="stroke">HR</text>` : "");
+    } else if (r.cat === "hit") {
+      shape = `<circle cx="${x}" cy="${y}" r="6" fill="var(--hit)" stroke="var(--surface)" stroke-width="2" data-tt="${label}"/>`;
+    } else {
+      shape = `<g data-tt="${label}" stroke="var(--out)" stroke-width="2.4" stroke-linecap="round">` +
+        `<line x1="${x-4.5}" y1="${y-4.5}" x2="${x+4.5}" y2="${y+4.5}"/><line x1="${x-4.5}" y1="${y+4.5}" x2="${x+4.5}" y2="${y-4.5}"/>` +
+        `<circle cx="${x}" cy="${y}" r="9" fill="transparent" stroke="none"/></g>`;
+    }
+    return shape;
+  }).join("");
+  return `
+  <svg viewBox="0 0 400 385" role="img" aria-label="打球方向チャート" style="width:100%;max-width:420px;display:block;margin:0 auto">
+    <path d="M 200 370 L 30 200 A 240 240 0 0 1 370 200 Z" fill="var(--surface2)" stroke="var(--line)" stroke-width="1.5"/>
+    <path d="M 200 370 L 270 300 L 200 230 L 130 300 Z" fill="none" stroke="var(--ink3)" stroke-width="1.2" opacity=".55"/>
+    <circle cx="200" cy="300" r="10" fill="none" stroke="var(--ink3)" stroke-width="1" opacity=".5"/>
+    ${["左","中","右"].map(d => { const [x,y] = FIELD_POS[d]; return `<text class="jp" x="${x}" y="${y - 16}" text-anchor="middle" font-size="11" opacity=".8">${d}</text>`; }).join("")}
+    ${marks}
+  </svg>
+  <div class="legend">
+    <span class="li"><span class="dot" style="background:var(--hit)"></span>単打</span>
+    <span class="li"><span class="dot" style="background:var(--xbh)"></span>長打（二塁打以上）</span>
+    <span class="li"><span style="color:var(--out);font-weight:800">✕</span>アウト・その他</span>
+  </div>
+  ${batted.length ? "" : `<div class="empty">打球データがまだありません</div>`}`;
+}
+
+function trendChartSVG(pid) {
+  const games = sortedGames();
+  const pts = [];
+  let acc = [];
+  for (const g of games) {
+    const gAbs = state.atBats.filter(a => a.gameId === g.id && a.playerId === pid);
+    if (!gAbs.length) continue;
+    acc = acc.concat(gAbs);
+    const s = calcStats(acc);
+    if (s.ab > 0) pts.push({ g, avg: s.avg, ab: s.ab, h: s.h });
+  }
+  if (pts.length < 2) return `<div class="empty">2試合以上のデータで推移が表示されます</div>`;
+  const W = 480, H = 180, mL = 44, mR = 16, mT = 14, mB = 30;
+  const maxY = Math.max(0.5, ...pts.map(p => p.avg)) * 1.1;
+  const X = i => mL + (W - mL - mR) * (pts.length === 1 ? .5 : i / (pts.length - 1));
+  const Y = v => mT + (H - mT - mB) * (1 - v / maxY);
+  const grid = [];
+  for (let v = 0.1; v < maxY; v += 0.1) {
+    grid.push(`<line x1="${mL}" x2="${W - mR}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/>` +
+      `<text x="${mL - 6}" y="${Y(v) + 3.5}" text-anchor="end" font-size="10">${fmtRate(v)}</text>`);
+  }
+  const path = pts.map((p, i) => (i ? "L" : "M") + X(i) + " " + Y(p.avg)).join(" ");
+  const dots = pts.map((p, i) => {
+    const last = i === pts.length - 1;
+    return `<circle cx="${X(i)}" cy="${Y(p.avg)}" r="${last ? 5 : 4}" fill="var(--hit)" stroke="var(--surface)" stroke-width="2"
+      data-tt="${esc(vsLabel(p.g.opponent))}（${fmtDate(p.g.date)}）<br>通算 <span class='tt-num'>${p.h}/${p.ab}</span> 打率 <span class='tt-num'>${fmtRate(p.avg)}</span>"/>` +
+      (last ? `<text x="${X(i)}" y="${Y(p.avg) - 10}" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--hit)">${fmtRate(p.avg)}</text>` : "");
+  }).join("");
+  const xlabels = pts.map((p, i) => `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" font-size="10">${fmtDate(p.g.date)}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="打率の推移" style="width:100%;display:block">
+    ${grid.join("")}
+    <line x1="${mL}" x2="${W - mR}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--ink3)" stroke-width="1"/>
+    <path d="${path}" fill="none" stroke="var(--hit)" stroke-width="2" stroke-linejoin="round"/>
+    ${dots}${xlabels}
+  </svg>
+  <div class="chart-note">試合終了時点の通算打率</div>`;
+}
+
+function resultBreakdownHTML(abs) {
+  const counts = {};
+  abs.forEach(a => { counts[a.result] = (counts[a.result] || 0) + 1; });
+  const items = RESULT_KEYS.filter(k => counts[k]).map(k => ({ k, n: counts[k] }));
+  if (!items.length) return `<div class="empty">データがありません</div>`;
+  const max = Math.max(...items.map(i => i.n));
+  return items.map(({ k, n }) => {
+    const w = Math.max(4, n / max * 100);
+    const r = RESULTS[k];
+    const col = r.cat === "hit" ? (r.bases >= 2 ? "var(--xbh)" : "var(--hit)") : "var(--out)";
+    return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+      <span style="width:58px;flex:none;font-size:12.5px;color:var(--ink2)">${esc(k)}</span>
+      <div style="flex:1;background:var(--surface2);border-radius:4px;height:16px;position:relative">
+        <div style="width:${w}%;height:100%;border-radius:4px;background:${col};opacity:.85"></div>
+      </div>
+      <span class="num" style="width:26px;text-align:right;font-size:13px">${n}</span>
+    </div>`;
+  }).join("");
+}
+
+/* ───────────────────────── views ───────────────────────── */
+function render() {
+  $("#team-name-h").textContent = state.teamName || "チーム";
+  const yrs = state.games.map(g => (g.date || "").slice(0, 4)).filter(Boolean);
+  $("#season-y").textContent = yrs.length ? [...new Set(yrs)].sort().join("–") : new Date().getFullYear();
+  document.title = (state.teamName ? state.teamName + " " : "") + "スコアブック";
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === route.tab));
+  const main = $("#main");
+  if (route.tab === "stats") main.innerHTML = route.playerId ? viewPlayer(route.playerId) : viewStats();
+  else if (route.tab === "games") main.innerHTML = route.gameId ? viewGame(route.gameId) : viewGames();
+  else if (route.tab === "input") main.innerHTML = viewInput();
+  else main.innerHTML = viewImport();
+  bindTooltips(main);
+  afterRender();
+}
+
+/* — 成績: チーム+選手一覧 — */
+let sortKey = "avg", sortDesc = true;
+function viewStats() {
+  const team = calcStats(state.atBats);
+  const rows = state.players.map(p => ({ p, s: calcStats(absOfPlayer(p.id)) }));
+  const val = r => {
+    const v = r.s[sortKey];
+    return v === null || v === undefined ? -1 : v;
+  };
+  rows.sort((a, b) => {
+    if (sortKey === "name") return (sortDesc ? -1 : 1) * a.p.name.localeCompare(b.p.name, "ja");
+    return sortDesc ? val(b) - val(a) : val(a) - val(b);
+  });
+  const cols = [
+    ["name","選手"],["pa","打席"],["ab","打数"],["h","安打"],["hr","本"],["rbi","打点"],["run","得点"],
+    ["bb","四死球"],["so","三振"],["avg","打率"],["obp","出塁率"],["ops","OPS"],
+  ];
+  const wins = state.games.filter(g => g.scoreFor > g.scoreAgainst).length;
+  const losses = state.games.filter(g => g.scoreFor < g.scoreAgainst).length;
+  return `
+  <div class="tiles" style="margin-bottom:14px">
+    <div class="tile"><div class="t-label">試合</div><div class="t-value">${state.games.length}</div><div class="t-sub">${wins}勝${losses}敗${state.games.length - wins - losses ? state.games.length - wins - losses + "分" : ""}</div></div>
+    <div class="tile"><div class="t-label">チーム打率</div><div class="t-value">${fmtRate(team.avg)}</div><div class="t-sub">${team.h}安打 / ${team.ab}打数</div></div>
+    <div class="tile"><div class="t-label">総得点</div><div class="t-value">${state.games.reduce((n, g) => n + (g.scoreFor || 0), 0)}</div><div class="t-sub">失点 ${state.games.reduce((n, g) => n + (g.scoreAgainst || 0), 0)}</div></div>
+    <div class="tile"><div class="t-label">本塁打</div><div class="t-value">${team.hr}</div><div class="t-sub">チーム合計</div></div>
+  </div>
+  <div class="card">
+    <h2>個人成績（選手をタップで詳細）</h2>
+    <div class="tbl-wrap">
+    <table class="stats">
+      <thead><tr>${cols.map(([k, l]) =>
+        `<th data-sort="${k}" class="${sortKey === k ? "sorted" : ""}">${l}${sortKey === k ? (sortDesc ? " ▾" : " ▴") : ""}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(({ p, s }) => `
+        <tr class="rowlink" data-player="${p.id}">
+          <td class="name">${p.number != null ? `<span class="num" style="color:var(--ink3);margin-right:6px">${p.number}</span>` : ""}${esc(p.name)}</td>
+          <td>${s.pa}</td><td>${s.ab}</td><td>${s.h}</td><td>${s.hr}</td><td>${s.rbi}</td><td>${s.run}</td>
+          <td>${s.bb}</td><td>${s.so}</td>
+          <td><b>${fmtRate(s.avg)}</b></td><td>${fmtRate(s.obp)}</td><td>${fmtRate(s.ops)}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+/* — 選手詳細 — */
+function viewPlayer(pid) {
+  const p = playerOf(pid);
+  if (!p) return `<div class="empty">選手が見つかりません</div>`;
+  const abs = absOfPlayer(pid);
+  const s = calcStats(abs);
+  const games = sortedGames().filter(g => abs.some(a => a.gameId === g.id));
+  return `
+  <button class="btn small back" id="back-stats">← 成績一覧へ</button>
+  <div class="hdr-flex" style="margin-bottom:10px">
+    <h2 style="margin:0;font-size:21px">${p.number != null ? `<span class="num" style="color:var(--ink3)">#${p.number}</span> ` : ""}${esc(p.name)}</h2>
+    <span class="subtle">${games.length}試合 ${s.pa}打席</span>
+  </div>
+  <div class="tiles" style="margin-bottom:14px">
+    <div class="tile"><div class="t-label">打率</div><div class="t-value">${fmtRate(s.avg)}</div><div class="t-sub">${s.h}/${s.ab}</div></div>
+    <div class="tile"><div class="t-label">出塁率</div><div class="t-value">${fmtRate(s.obp)}</div></div>
+    <div class="tile"><div class="t-label">OPS</div><div class="t-value">${fmtRate(s.ops)}</div></div>
+    <div class="tile"><div class="t-label">打点</div><div class="t-value">${s.rbi}</div></div>
+    <div class="tile"><div class="t-label">本塁打</div><div class="t-value">${s.hr}</div></div>
+  </div>
+  <div class="card"><h2>打球方向</h2>${sprayChartSVG(abs)}</div>
+  <div class="card"><h2>打率の推移</h2>${trendChartSVG(pid)}</div>
+  <div class="card"><h2>結果の内訳</h2>${resultBreakdownHTML(abs)}</div>
+  <div class="card">
+    <h2>打席の内容（新しい試合から）</h2>
+    ${[...games].reverse().map(g => {
+      const gAbs = abs.filter(a => a.gameId === g.id).sort((a, b) => a.inning - b.inning);
+      const gs = calcStats(gAbs);
+      return `<div style="margin-bottom:12px">
+        <div class="hdr-flex"><b>${fmtDate(g.date)} ${esc(vsLabel(g.opponent))}</b>
+          <span class="subtle num">${gs.h}安打/${gs.ab}打数${gs.rbi ? "・" + gs.rbi + "打点" : ""}</span></div>
+        ${gAbs.map(a => paRowHTML(a)).join("")}
+      </div>`;
+    }).join("") || `<div class="empty">まだ打席がありません</div>`}
+  </div>`;
+}
+
+function paRowHTML(a, withName) {
+  const p = playerOf(a.playerId);
+  return `<div class="pa-row">
+    <span class="pa-inning">${a.inning}回</span>
+    ${withName ? `<span class="pa-name">${esc(p ? p.name : "?")}</span>` : ""}
+    <span class="badge ${resultBadgeClass(a.result)}">${esc(a.result)}</span>
+    <span class="pa-detail">${[a.direction ? esc(a.direction) + "方向" : null, a.rbi ? a.rbi + "打点" : null, a.run ? "得点" : null].filter(Boolean).join("・")}</span>
+    ${a.note ? `<span class="pa-note">⚠ ${esc(a.note)}</span>` : ""}
+    <span class="pa-actions">
+      <button class="icon-btn" data-edit-ab="${a.id}" aria-label="編集">編集</button>
+      <button class="icon-btn del" data-del-ab="${a.id}" aria-label="削除">削除</button>
+    </span>
+  </div>`;
+}
+
+/* — 試合 — */
+function viewGames() {
+  const games = sortedGames().reverse();
+  return `
+  <div class="card">
+    <h2>試合一覧</h2>
+    ${games.length ? games.map(g => {
+      const wl = g.scoreFor > g.scoreAgainst ? ["w","勝"] : g.scoreFor < g.scoreAgainst ? ["l","負"] : ["d","分"];
+      return `<div class="game-row" data-game="${g.id}">
+        <span class="game-date">${esc(g.date || "")}</span>
+        <span class="game-wl ${wl[0]}">${wl[1]}</span>
+        <span class="game-vs">${esc(vsLabel(g.opponent))}</span>
+        <span class="game-score">${g.scoreFor} - ${g.scoreAgainst}</span>
+      </div>`;
+    }).join("") : `<div class="empty">まだ試合がありません。「打席入力」か「取り込み」から追加できます。</div>`}
+  </div>`;
+}
+
+function viewGame(gid) {
+  const g = gameOf(gid);
+  if (!g) return `<div class="empty">試合が見つかりません</div>`;
+  const abs = absOfGame(gid).sort((a, b) => a.inning - b.inning || a.id.localeCompare(b.id));
+  const split = isSplitGame(g);
+  const innings = [...new Set(abs.map(a => a.inning))].sort((a, b) => a - b);
+  const needCheck = abs.filter(a => a.note).length;
+
+  let summaryHTML, inningsHTML;
+  if (split) {
+    const sT = calcStats(abs.filter(a => a.side === "T"));
+    const sB = calcStats(abs.filter(a => a.side === "B"));
+    const runsOf = (side, inn) => abs.filter(a => a.side === side && a.inning === inn && a.run).length;
+    summaryHTML = `
+    <div class="tbl-wrap" style="margin-top:8px">
+      <table class="line-score">
+        <thead><tr><th></th>${innings.map(i => `<th>${i}</th>`).join("")}<th>計</th><th class="ls-stat">安打</th></tr></thead>
+        <tbody>
+          <tr><td class="ls-team">先攻（表）</td>${innings.map(i => `<td>${runsOf("T", i)}</td>`).join("")}<td class="ls-total">${g.scoreFor}</td><td class="ls-stat">${sT.h}</td></tr>
+          <tr><td class="ls-team">後攻（裏）</td>${innings.map(i => `<td>${runsOf("B", i)}</td>`).join("")}<td class="ls-total">${g.scoreAgainst}</td><td class="ls-stat">${sB.h}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="subtle num" style="margin-top:6px">表: ${sT.h}安打/${sT.ab}打数（${fmtRate(sT.avg)}）　裏: ${sB.h}安打/${sB.ab}打数（${fmtRate(sB.avg)}）</div>`;
+    const halves = [];
+    for (const inn of innings) {
+      for (const side of ["T", "B"]) {
+        const rows = abs.filter(a => a.inning === inn && (a.side === side || (!a.side && side === "T")));
+        if (!rows.length) continue;
+        const r = rows.filter(a => a.run).length;
+        halves.push(`
+        <div class="card">
+          <h2>${inn}回${SIDE_LABEL[side]}の攻撃${r ? `<span class="h2-runs num">${r}得点</span>` : ""}</h2>
+          ${rows.map(a => paRowHTML(a, true)).join("")}
+        </div>`);
+      }
+    }
+    inningsHTML = halves.join("") || `<div class="empty">打席がまだありません</div>`;
+  } else {
+    const s = calcStats(abs);
+    summaryHTML = `<div class="subtle num">チーム: ${s.h}安打 / ${s.ab}打数（${fmtRate(s.avg)}）・四死球${s.bb}・三振${s.so}</div>`;
+    inningsHTML = innings.map(inn => `
+    <div class="card">
+      <h2>${inn}回の攻撃</h2>
+      ${abs.filter(a => a.inning === inn).map(a => paRowHTML(a, true)).join("")}
+    </div>`).join("") || `<div class="empty">打席がまだありません</div>`;
+  }
+
+  return `
+  <button class="btn small back" id="back-games">← 試合一覧へ</button>
+  <div class="card">
+    <div class="hdr-flex">
+      <h2 style="font-size:16px;letter-spacing:0;color:var(--ink)">${esc(g.date || "")}　${esc(vsLabel(g.opponent))}</h2>
+      <span class="spacer"></span>
+      <span class="num" style="font-size:22px">${g.scoreFor} - ${g.scoreAgainst}</span>
+    </div>
+    ${summaryHTML}
+    ${needCheck ? `<div class="warn-text" style="margin-top:6px">⚠ 要確認の打席が ${needCheck} 件あります（AI読み取り分）。各行の「編集」で直せます。</div>` : ""}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn small primary" id="add-ab-here">この試合に打席を追加</button>
+      <button class="btn small" id="edit-game">試合情報を編集</button>
+      <button class="btn small danger" id="del-game">試合を削除</button>
+    </div>
+  </div>
+  ${inningsHTML}`;
+}
+
+/* — 打席入力 — */
+let form = { gameId: null, playerId: null, inning: 1, result: null, direction: "", rbi: 0, run: false, newGame: false, side: "" };
+function viewInput() {
+  const editing = route.editAbId ? state.atBats.find(a => a.id === route.editAbId) : null;
+  if (editing && form._loadedFor !== editing.id) {
+    form = { ...editing, newGame: false, _loadedFor: editing.id };
+  }
+  if (!editing && !form.gameId && state.games.length) {
+    form.gameId = sortedGames()[state.games.length - 1].id;
+  }
+  const games = sortedGames().reverse();
+  const recent = [...state.atBats].slice(-5).reverse();
+  const catCls = k => { const r = RESULTS[k]; return r.cat === "hit" ? "res-hit" : (r.cat === "out" ? "res-out" : "res-xbh"); };
+  const splitG = !form.newGame && isSplitGame(gameOf(form.gameId));
+  if (splitG && !form.side) form.side = "T";
+  return `
+  <div class="card">
+    <h2>${editing ? "打席を編集" : "打席をひとつずつ記録"}</h2>
+    <div class="field"><label>試合</label>
+      ${form.newGame ? `
+        <div class="row3">
+          <input type="date" id="ng-date" value="">
+          <input type="text" id="ng-opp" placeholder="相手チーム名">
+          <div class="row2"><input type="number" id="ng-for" placeholder="自" min="0"><input type="number" id="ng-against" placeholder="相手" min="0"></div>
+        </div>
+        <div style="margin-top:6px"><a href="#" class="link" id="cancel-newgame">既存の試合を選ぶ</a></div>` : `
+        <select id="f-game">
+          ${games.map(g => `<option value="${g.id}" ${form.gameId === g.id ? "selected" : ""}>${esc(g.date || "")} ${esc(vsLabel(g.opponent))}</option>`).join("")}
+        </select>
+        ${editing ? "" : `<div style="margin-top:6px"><a href="#" class="link" id="mk-newgame">＋ 新しい試合を作る</a></div>`}`}
+    </div>
+    ${splitG ? `<div class="field"><label>攻撃（表/裏）</label>
+      <div class="chips" id="f-sides">
+        <button class="chip ${form.side === "T" ? "on" : ""}" data-side="T">表（先攻）</button>
+        <button class="chip ${form.side === "B" ? "on" : ""}" data-side="B">裏（後攻）</button>
+      </div>
+    </div>` : ""}
+    <div class="field"><label>選手</label>
+      <div class="chips" id="f-players">
+        ${state.players.map(p => `<button class="chip ${form.playerId === p.id ? "on" : ""}" data-pl="${p.id}">${p.number != null ? p.number + " " : ""}${esc(p.name)}</button>`).join("")}
+        <button class="chip" id="add-player">＋ 選手追加</button>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>イニング</label>
+        <div class="stepper"><button id="inn-dn" aria-label="イニングを減らす">−</button><span class="stepper-v">${form.inning}</span><button id="inn-up" aria-label="イニングを増やす">＋</button></div>
+      </div>
+      <div class="field"><label>打点 / 得点</label>
+        <div style="display:flex;gap:14px;align-items:center">
+          <div class="stepper"><button id="rbi-dn" aria-label="打点を減らす">−</button><span class="stepper-v">${form.rbi}</span><button id="rbi-up" aria-label="打点を増やす">＋</button></div>
+          <label class="check-row"><input type="checkbox" id="f-run" ${form.run ? "checked" : ""}>本人が得点</label>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>結果</label>
+      <div class="chips" id="f-results">
+        ${RESULT_KEYS.map(k => `<button class="chip ${catCls(k)} ${form.result === k ? "on" : ""}" data-res="${k}">${k}</button>`).join("")}
+      </div>
+    </div>
+    <div class="field"><label>打球方向（任意）</label>
+      <div class="chips" id="f-dirs">
+        <button class="chip ${form.direction === "" ? "on" : ""}" data-dir="">なし</button>
+        ${DIRS.map(d => `<button class="chip ${form.direction === d ? "on" : ""}" data-dir="${d}">${d}</button>`).join("")}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" id="submit-ab" style="flex:1">${editing ? "更新する" : "この打席を記録"}</button>
+      ${editing ? `<button class="btn" id="cancel-edit">キャンセル</button>` : ""}
+    </div>
+  </div>
+  ${editing ? "" : `
+  <div class="card">
+    <h2>直近の記録</h2>
+    ${recent.length ? recent.map(a => {
+      const g = gameOf(a.gameId);
+      return `<div class="pa-row">
+        <span class="subtle" style="flex:none;width:64px">${g ? fmtDate(g.date) : ""}</span>
+        ${paRowHTML(a, true).replace('<div class="pa-row">', "").replace(/<\/div>$/, "")}
+      </div>`;
+    }).join("") : `<div class="empty">まだ記録がありません</div>`}
+  </div>`}`;
+}
+
+/* — 取り込み — */
+let importPreview = null;
+function viewImport() {
+  const roster = state.players.map(p => (p.number != null ? p.number + " " : "") + p.name).join("、");
+  return `
+  <div class="card">
+    <h2>紙のスコアブックをAIで取り込む</h2>
+    <div class="steps">
+      <div class="step"><span class="n"></span><div><h3>スコアブックを撮影する</h3><p>1試合ぶんのページ全体が入るように、正面からはっきり撮ります。</p></div></div>
+      <div class="step"><span class="n"></span><div><h3>Claudeに写真とプロンプトを送る</h3><p>下のボタンで読み取り用プロンプトをコピーし、Claudeアプリに写真と一緒に貼り付けて送信します。</p></div></div>
+      <div class="step"><span class="n"></span><div><h3>返ってきたJSONを下に貼り付ける</h3><p>内容を確認してから取り込みます。自信のない打席には「要確認」の印が付くので、あとから編集で直せます。</p></div></div>
+    </div>
+    <button class="btn primary" id="copy-prompt">読み取り用プロンプトをコピー</button>
+  </div>
+  <div class="card">
+    <h2>JSONを貼り付けてインポート</h2>
+    <textarea id="import-json" placeholder='{"game": {...}, "atBats": [...]}'></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button class="btn primary" id="parse-import">内容を確認</button>
+    </div>
+    <div id="import-result"></div>
+  </div>
+  <div class="card">
+    <h2>データ管理</h2>
+    <p class="subtle" style="margin:0 0 10px">データはこの端末のブラウザにだけ保存されます。機種変更前などにバックアップを取ってください。</p>
+    <div class="field"><label>チーム名</label><input type="text" id="set-teamname" value="${esc(state.teamName || "")}"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="backup-copy">バックアップをコピー</button>
+      <button class="btn" id="backup-dl" style="display:none">バックアップを保存</button>
+      <button class="btn" id="restore">バックアップから復元</button>
+      <button class="btn danger" id="reset-sample">初期データ（7/26紅白戦）に戻す</button>
+      <button class="btn danger" id="wipe">全データを削除</button>
+    </div>
+    <p class="subtle" style="margin:10px 0 0">復元するには、上のテキスト欄にバックアップJSONを貼り付けてから「バックアップから復元」を押します。</p>
+  </div>`;
+}
+
+function buildPrompt() {
+  const roster = state.players.map(p => (p.number != null ? "背番号" + p.number + " " : "") + p.name).join(" / ");
+  return `あなたは野球スコアブックの読み取りアシスタントです。添付した紙のスコアブックの写真を読み取り、次のJSONだけを出力してください（説明文・コードブロック記号は不要）。
+
+{
+  "game": { "date": "YYYY-MM-DD", "opponent": "相手チーム名", "scoreFor": 自チームの得点, "scoreAgainst": 相手の得点 },
+  "atBats": [
+    { "player": "選手名", "number": 背番号または null, "inning": 回, "result": "結果", "direction": "方向", "rbi": 打点, "run": 本人が得点したら true, "note": "" }
+  ]
+}
+
+ルール:
+- result は必ず次のいずれか: ${RESULT_KEYS.join(" / ")}
+- direction は打球の方向で、次のいずれか（打球がない場合は空文字 ""）: ${DIRS.join(" / ")}
+- 自チームの攻撃の打席だけを、イニング順にすべて出力する
+- 読み取りに自信がない打席は note に「要確認: 理由」を書く（自信があれば空文字）
+- 選手名は次の登録名簿の表記に合わせる: ${roster || "（名簿未登録。読み取った名前をそのまま使う）"}
+- 自チーム名: ${state.teamName || "不明"}`;
+}
+
+function parseImport(text) {
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { return { error: "JSONとして読めませんでした。コピー漏れがないか確認してください。\n" + e.message }; }
+  if (data && data.players && data.games && data.atBats) return { backup: data };
+  if (!data || typeof data !== "object" || !data.game || !Array.isArray(data.atBats))
+    return { error: '形式が違います。"game" と "atBats" を含むJSONを貼り付けてください。' };
+  const errs = [], warns = [];
+  const g = data.game;
+  if (!g.opponent) warns.push("相手チーム名がありません");
+  const abs = data.atBats.map((a, i) => {
+    const row = { ...a };
+    if (!RESULTS[row.result]) errs.push(`${i + 1}件目: result "${row.result}" は使えません`);
+    if (row.direction && !DIRS.includes(row.direction)) { warns.push(`${i + 1}件目: direction "${row.direction}" は無視しました`); row.direction = ""; }
+    row.inning = Math.max(1, parseInt(row.inning, 10) || 1);
+    row.rbi = Math.max(0, parseInt(row.rbi, 10) || 0);
+    row.run = !!row.run;
+    row.note = typeof row.note === "string" ? row.note : "";
+    row.side = (row.side === "表" || row.side === "T") ? "T" : (row.side === "裏" || row.side === "B") ? "B" : undefined;
+    if (!row.player) errs.push(`${i + 1}件目: player（選手名）がありません`);
+    return row;
+  });
+  if (errs.length) return { error: errs.join("\n") };
+  const knownNames = new Set(state.players.map(p => p.name));
+  const newPlayers = [...new Set(abs.map(a => a.player))].filter(n => !knownNames.has(n));
+  return { game: g, abs, warns, newPlayers };
+}
+
+function doImport(pv) {
+  const gid = uid("g");
+  state.games.push({
+    id: gid,
+    date: pv.game.date || "",
+    opponent: pv.game.opponent || "不明",
+    scoreFor: parseInt(pv.game.scoreFor, 10) || 0,
+    scoreAgainst: parseInt(pv.game.scoreAgainst, 10) || 0,
+  });
+  const byName = {};
+  state.players.forEach(p => { byName[p.name] = p; });
+  for (const name of pv.newPlayers) {
+    const src = pv.abs.find(a => a.player === name);
+    const pl = { id: uid("p"), name, number: src && src.number != null ? parseInt(src.number, 10) || null : null };
+    state.players.push(pl); byName[name] = pl;
+  }
+  for (const a of pv.abs) {
+    state.atBats.push({
+      id: uid("ab"), gameId: gid, playerId: byName[a.player].id,
+      inning: a.inning, result: a.result, direction: a.direction || "",
+      rbi: a.rbi, run: a.run, note: a.note || "", side: a.side,
+    });
+  }
+  save();
+  return gid;
+}
+
+/* ───────────────────────── events ───────────────────────── */
+document.querySelectorAll("nav.tabs button").forEach(b =>
+  b.addEventListener("click", () => {
+    if (b.dataset.tab === "input") { route.editAbId = null; form._loadedFor = null; }
+    go({ tab: b.dataset.tab, playerId: null, gameId: null });
+  }));
+
+function afterRender() {
+  const main = $("#main");
+  /* stats */
+  main.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.sort;
+    if (sortKey === k) sortDesc = !sortDesc; else { sortKey = k; sortDesc = k !== "name"; }
+    render();
+  }));
+  main.querySelectorAll("tr[data-player]").forEach(tr => tr.addEventListener("click", () => go({ playerId: tr.dataset.player })));
+  const backS = $("#back-stats"); if (backS) backS.addEventListener("click", () => go({ playerId: null }));
+  /* games */
+  main.querySelectorAll(".game-row[data-game]").forEach(r => r.addEventListener("click", () => go({ gameId: r.dataset.game })));
+  const backG = $("#back-games"); if (backG) backG.addEventListener("click", () => go({ gameId: null }));
+  const addHere = $("#add-ab-here"); if (addHere) addHere.addEventListener("click", () => {
+    form = { gameId: route.gameId, playerId: null, inning: 1, result: null, direction: "", rbi: 0, run: false, newGame: false };
+    go({ tab: "input", editAbId: null });
+  });
+  const editG = $("#edit-game"); if (editG) editG.addEventListener("click", () => {
+    const g = gameOf(route.gameId); if (!g) return;
+    const opp = prompt("相手チーム名", g.opponent); if (opp === null) return;
+    const date = prompt("日付 (YYYY-MM-DD)", g.date || ""); if (date === null) return;
+    const sf = prompt("自チームの得点", g.scoreFor); if (sf === null) return;
+    const sa = prompt("相手の得点", g.scoreAgainst); if (sa === null) return;
+    g.opponent = opp || g.opponent; g.date = date; g.scoreFor = parseInt(sf, 10) || 0; g.scoreAgainst = parseInt(sa, 10) || 0;
+    save(); render(); showToast("試合情報を更新しました");
+  });
+  const delG = $("#del-game"); if (delG) delG.addEventListener("click", () => {
+    const g = gameOf(route.gameId); if (!g) return;
+    if (!confirm(`「${g.date} vs ${g.opponent}」と、その打席${absOfGame(g.id).length}件を削除します。よろしいですか?`)) return;
+    state.atBats = state.atBats.filter(a => a.gameId !== g.id);
+    state.games = state.games.filter(x => x.id !== g.id);
+    save(); go({ gameId: null }); showToast("試合を削除しました");
+  });
+  /* PA row edit/delete (player & game views) */
+  main.querySelectorAll("[data-edit-ab]").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    form._loadedFor = null;
+    go({ tab: "input", editAbId: b.dataset.editAb });
+  }));
+  main.querySelectorAll("[data-del-ab]").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    const a = state.atBats.find(x => x.id === b.dataset.delAb); if (!a) return;
+    const p = playerOf(a.playerId);
+    if (!confirm(`${p ? p.name : ""} ${a.inning}回の「${a.result}」を削除しますか?`)) return;
+    state.atBats = state.atBats.filter(x => x.id !== a.id);
+    save(); render(); showToast("打席を削除しました");
+  }));
+  /* input form */
+  const fg = $("#f-game"); if (fg) fg.addEventListener("change", () => { form.gameId = fg.value; form.side = ""; render(); });
+  main.querySelectorAll("#f-sides [data-side]").forEach(c => c.addEventListener("click", () => { form.side = c.dataset.side; render(); }));
+  const mkNG = $("#mk-newgame"); if (mkNG) mkNG.addEventListener("click", e => { e.preventDefault(); form.newGame = true; render(); });
+  const cNG = $("#cancel-newgame"); if (cNG) cNG.addEventListener("click", e => { e.preventDefault(); form.newGame = false; render(); });
+  main.querySelectorAll("#f-players [data-pl]").forEach(c => c.addEventListener("click", () => { form.playerId = c.dataset.pl; render(); }));
+  const addP = $("#add-player"); if (addP) addP.addEventListener("click", () => {
+    const name = prompt("選手名"); if (!name) return;
+    const numS = prompt("背番号（なければ空欄）") || "";
+    const pl = { id: uid("p"), name: name.trim(), number: numS.trim() === "" ? null : parseInt(numS, 10) };
+    state.players.push(pl); form.playerId = pl.id; save(); render();
+  });
+  const step = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
+  step("#inn-up", () => { form.inning = Math.min(15, form.inning + 1); render(); });
+  step("#inn-dn", () => { form.inning = Math.max(1, form.inning - 1); render(); });
+  step("#rbi-up", () => { form.rbi = Math.min(4, form.rbi + 1); render(); });
+  step("#rbi-dn", () => { form.rbi = Math.max(0, form.rbi - 1); render(); });
+  const frun = $("#f-run"); if (frun) frun.addEventListener("change", () => { form.run = frun.checked; });
+  main.querySelectorAll("#f-results [data-res]").forEach(c => c.addEventListener("click", () => { form.result = c.dataset.res; render(); }));
+  main.querySelectorAll("#f-dirs [data-dir]").forEach(c => c.addEventListener("click", () => { form.direction = c.dataset.dir; render(); }));
+  const cancelE = $("#cancel-edit"); if (cancelE) cancelE.addEventListener("click", () => {
+    form = { gameId: null, playerId: null, inning: 1, result: null, direction: "", rbi: 0, run: false, newGame: false };
+    go({ tab: "games", editAbId: null, gameId: route.gameId });
+  });
+  const submit = $("#submit-ab"); if (submit) submit.addEventListener("click", () => {
+    if (form.newGame) {
+      const date = $("#ng-date").value, opp = $("#ng-opp").value.trim();
+      if (!opp) { showToast("相手チーム名を入れてください"); return; }
+      const g = { id: uid("g"), date, opponent: opp, scoreFor: parseInt($("#ng-for").value, 10) || 0, scoreAgainst: parseInt($("#ng-against").value, 10) || 0 };
+      state.games.push(g); form.gameId = g.id; form.newGame = false;
+    }
+    if (!form.gameId) { showToast("試合を選んでください"); return; }
+    if (!form.playerId) { showToast("選手を選んでください"); return; }
+    if (!form.result) { showToast("結果を選んでください"); return; }
+    const sideVal = isSplitGame(gameOf(form.gameId)) ? (form.side || "T") : undefined;
+    if (route.editAbId) {
+      const a = state.atBats.find(x => x.id === route.editAbId);
+      if (a) Object.assign(a, { gameId: form.gameId, playerId: form.playerId, inning: form.inning, result: form.result, direction: form.direction, rbi: form.rbi, run: form.run, note: "", side: sideVal });
+      save();
+      const gid = a ? a.gameId : null;
+      form = { gameId: null, playerId: null, inning: 1, result: null, direction: "", rbi: 0, run: false, newGame: false };
+      go({ tab: "games", gameId: gid, editAbId: null });
+      showToast("打席を更新しました");
+    } else {
+      state.atBats.push({ id: uid("ab"), gameId: form.gameId, playerId: form.playerId, inning: form.inning, result: form.result, direction: form.direction, rbi: form.rbi, run: form.run, note: "", side: sideVal });
+      save();
+      const p = playerOf(form.playerId);
+      form.playerId = null; form.result = null; form.direction = ""; form.rbi = 0; form.run = false;
+      render();
+      showToast((p ? p.name + " の" : "") + "打席を記録しました");
+    }
+  });
+  /* import */
+  const copyP = $("#copy-prompt"); if (copyP) copyP.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(buildPrompt()); showToast("プロンプトをコピーしました"); }
+    catch (e) { alert(buildPrompt()); }
+  });
+  const parseB = $("#parse-import"); if (parseB) parseB.addEventListener("click", () => {
+    const out = $("#import-result");
+    const res = parseImport($("#import-json").value.trim());
+    if (res.error) { importPreview = null; out.innerHTML = `<div class="err-text" style="margin-top:10px">${esc(res.error)}</div>`; return; }
+    if (res.backup) { importPreview = null; out.innerHTML = `<div class="warn-text" style="margin-top:10px">これはバックアップデータのようです。「バックアップから復元」を押してください。</div>`; return; }
+    importPreview = res;
+    const checks = res.abs.filter(a => a.note).length;
+    out.innerHTML = `<div class="import-preview">
+      <h3>${esc(res.game.date || "日付不明")} vs ${esc(res.game.opponent || "不明")}（${parseInt(res.game.scoreFor, 10) || 0} - ${parseInt(res.game.scoreAgainst, 10) || 0}）</h3>
+      <div style="font-size:13.5px">打席 ${res.abs.length} 件${res.newPlayers.length ? `・新しい選手 ${res.newPlayers.length} 名を登録（${esc(res.newPlayers.join("、"))}）` : ""}${checks ? `・<span class="warn-text">要確認 ${checks} 件</span>` : ""}</div>
+      ${res.warns.length ? `<div class="warn-text" style="margin-top:4px">${esc(res.warns.join(" / "))}</div>` : ""}
+      <button class="btn primary" id="do-import" style="margin-top:10px">この内容で取り込む</button>
+    </div>`;
+    $("#do-import").addEventListener("click", () => {
+      const gid = doImport(importPreview);
+      importPreview = null;
+      go({ tab: "games", gameId: gid });
+      showToast("試合を取り込みました");
+    });
+  });
+  const setTN = $("#set-teamname"); if (setTN) setTN.addEventListener("change", () => {
+    state.teamName = setTN.value.trim(); save(); $("#team-name-h").textContent = state.teamName || "チーム";
+  });
+  const bkCopy = $("#backup-copy"); if (bkCopy) bkCopy.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(JSON.stringify(state)); showToast("バックアップをコピーしました"); }
+    catch (e) { showToast("コピーできませんでした"); }
+  });
+  const bkDl = $("#backup-dl");
+  if (bkDl && window.claude && window.claude.downloads) {
+    bkDl.style.display = "";
+    bkDl.addEventListener("click", async () => {
+      try {
+        await window.claude.downloads.save({ filename: "scorebook-backup.json", data: JSON.stringify(state, null, 1) });
+        showToast("バックアップを保存しました");
+      } catch (e) { showToast("保存はキャンセルされました"); }
+    });
+  }
+  const restoreB = $("#restore"); if (restoreB) restoreB.addEventListener("click", () => {
+    const res = parseImport($("#import-json").value.trim());
+    if (!res.backup) { showToast("テキスト欄にバックアップJSONを貼り付けてください"); return; }
+    if (!confirm("現在のデータをすべて置き換えます。よろしいですか?")) return;
+    state = res.backup; save(); go({ tab: "stats", playerId: null, gameId: null }); showToast("復元しました");
+  });
+  const resetB = $("#reset-sample"); if (resetB) resetB.addEventListener("click", () => {
+    if (!confirm("現在のデータを消して初期データ（2026-07-26 紅白戦の読み取り結果）に戻します。よろしいですか?")) return;
+    state = sampleData(); save(); go({ tab: "stats", playerId: null, gameId: null }); showToast("初期データに戻しました");
+  });
+  const wipeB = $("#wipe"); if (wipeB) wipeB.addEventListener("click", () => {
+    if (!confirm("全データを削除します。この操作は元に戻せません。よろしいですか?")) return;
+    state = { teamName: state.teamName, players: [], games: [], atBats: [] };
+    save(); go({ tab: "stats", playerId: null, gameId: null }); showToast("削除しました");
+  });
+}
+
+render();
+</script>
+
+</body>
+</html>
