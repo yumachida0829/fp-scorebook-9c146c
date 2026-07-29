@@ -9,24 +9,24 @@
 <title>野球スコアブック</title>
 <style>
 :root {
-  --bg: #FAFAF7;
+  --bg: #F6F7FA;
   --surface: #FFFFFF;
-  --surface2: #F1F3EE;
-  --ink: #1C2420;
-  --ink2: #57625B;
-  --ink3: #8A948D;
-  --line: #E2E6DF;
-  --accent: #2E7D50;
-  --accent-soft: #E3EFE8;
+  --surface2: #EDF0F5;
+  --ink: #182132;
+  --ink2: #4F5B72;
+  --ink3: #8C96A9;
+  --line: #E2E6EE;
+  --accent: #1E3A6E;
+  --accent-soft: #E8EDF7;
   --on-accent: #FFFFFF;
   --hit: #2E7D50;
   --xbh: #B07E14;
   --out: #3D68AF;
   --danger: #B03A2E;
-  --board: #1B3A2A;
-  --board-ink: #F3F6EF;
-  --board-line: #2C543E;
-  --shadow: 0 1px 3px rgba(28,36,32,.08);
+  --board: #142950;
+  --board-ink: #F4F7FC;
+  --board-line: #24417A;
+  --shadow: 0 1px 3px rgba(20,30,50,.07), 0 4px 14px rgba(20,30,50,.04);
   --font-num: "DIN Alternate", "Bahnschrift", "Avenir Next Condensed", "Arial Narrow", sans-serif;
   color-scheme: light;
 }
@@ -54,45 +54,45 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #15201A;
-  --surface: #1D2B23;
-  --surface2: #23342A;
-  --ink: #ECF2EC;
-  --ink2: #A3B4A8;
-  --ink3: #75857A;
-  --line: #2C3B31;
-  --accent: #37A278;
-  --accent-soft: #24402F;
-  --on-accent: #0C1811;
+  --bg: #0D1420;
+  --surface: #16202F;
+  --surface2: #1D2A3D;
+  --ink: #E9EDF5;
+  --ink2: #A5B1C6;
+  --ink3: #71809A;
+  --line: #27344B;
+  --accent: #6D99DF;
+  --accent-soft: #21334F;
+  --on-accent: #0A1424;
   --hit: #37A278;
-  --xbh: #C08A2A;
+  --xbh: #B8842B;
   --out: #5E8BD6;
   --danger: #E07A6E;
-  --board: #101B14;
-  --board-ink: #E8F0E6;
-  --board-line: #24402F;
-  --shadow: 0 1px 3px rgba(0,0,0,.35);
+  --board: #0A1120;
+  --board-ink: #E9EDF5;
+  --board-line: #21334F;
+  --shadow: 0 1px 3px rgba(0,0,0,.4);
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #FAFAF7;
+  --bg: #F6F7FA;
   --surface: #FFFFFF;
-  --surface2: #F1F3EE;
-  --ink: #1C2420;
-  --ink2: #57625B;
-  --ink3: #8A948D;
-  --line: #E2E6DF;
-  --accent: #2E7D50;
-  --accent-soft: #E3EFE8;
+  --surface2: #EDF0F5;
+  --ink: #182132;
+  --ink2: #4F5B72;
+  --ink3: #8C96A9;
+  --line: #E2E6EE;
+  --accent: #1E3A6E;
+  --accent-soft: #E8EDF7;
   --on-accent: #FFFFFF;
   --hit: #2E7D50;
   --xbh: #B07E14;
   --out: #3D68AF;
   --danger: #B03A2E;
-  --board: #1B3A2A;
-  --board-ink: #F3F6EF;
-  --board-line: #2C543E;
-  --shadow: 0 1px 3px rgba(28,36,32,.08);
+  --board: #142950;
+  --board-ink: #F4F7FC;
+  --board-line: #24417A;
+  --shadow: 0 1px 3px rgba(20,30,50,.07), 0 4px 14px rgba(20,30,50,.04);
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -111,8 +111,7 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--in
 header.board {
   background: var(--board);
   color: var(--board-ink);
-  padding: 14px 16px 10px;
-  border-bottom: 3px solid var(--accent);
+  padding: 16px 16px 8px;
 }
 header.board .board-top { display: flex; align-items: baseline; gap: 10px; max-width: 860px; margin: 0 auto; }
 header.board .app-label { font-size: 11px; letter-spacing: .18em; opacity: .7; }
@@ -131,19 +130,19 @@ nav.tabs {
   border-bottom: 1px solid var(--board-line);
   display: flex; justify-content: center; gap: 0;
 }
-nav.tabs .tabs-inner { display: flex; max-width: 860px; width: 100%; }
+nav.tabs .tabs-inner { display: flex; max-width: 860px; width: 100%; padding: 6px 8px 8px; gap: 4px; }
 nav.tabs button {
   flex: 1; background: none; border: none; color: var(--board-ink);
-  padding: 10px 4px 8px; font-size: 13px; font-weight: 600; opacity: .62;
-  border-bottom: 3px solid transparent;
+  padding: 8px 4px; font-size: 13px; font-weight: 600; opacity: .6;
+  border-radius: 9px;
 }
-nav.tabs button.active { opacity: 1; border-bottom-color: var(--accent); }
+nav.tabs button.active { opacity: 1; background: rgba(255,255,255,.14); }
 nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 main { max-width: 860px; margin: 0 auto; padding: 16px 14px 90px; }
 
 /* ── common ── */
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 15px 17px; margin-bottom: 14px; }
 .card h2 { font-size: 13px; letter-spacing: .12em; color: var(--ink2); margin: 0 0 10px; font-weight: 700; }
 .card h2 .h2-runs { margin-left: 8px; color: var(--accent); letter-spacing: 0; }
 table.line-score { border-collapse: collapse; font-size: 13.5px; min-width: 220px; }
@@ -156,7 +155,7 @@ table.line-score .ls-stat { color: var(--ink3); font-size: 12px; }
 .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .btn {
   border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 600;
+  border-radius: 10px; padding: 8px 14px; font-size: 14px; font-weight: 600;
 }
 .btn:hover { background: var(--surface2); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
@@ -168,7 +167,7 @@ a.link { color: var(--accent); text-decoration: none; font-weight: 600; }
 
 /* stat tiles */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
-.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 8px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 11px 13px 9px; }
 .tile .t-label { font-size: 11px; letter-spacing: .1em; color: var(--ink2); font-weight: 600; }
 .tile .t-value { font-family: var(--font-num); font-size: 27px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .tile .t-sub { font-size: 11px; color: var(--ink3); }
