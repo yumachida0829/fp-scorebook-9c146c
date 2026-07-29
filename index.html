@@ -117,7 +117,13 @@ header.board {
 header.board .board-top { display: flex; align-items: baseline; gap: 10px; max-width: 860px; margin: 0 auto; }
 header.board .app-label { font-size: 11px; letter-spacing: .18em; opacity: .7; }
 header.board h1 { font-size: 19px; margin: 0; font-weight: 700; letter-spacing: .02em; }
-header.board .season { margin-left: auto; font-family: var(--font-num); font-size: 13px; opacity: .75; letter-spacing: .08em; }
+header.board .season { font-family: var(--font-num); font-size: 13px; opacity: .75; letter-spacing: .08em; }
+.sync-badge {
+  margin-left: auto; font-size: 10.5px; font-weight: 600; letter-spacing: .05em;
+  padding: 2px 9px; border-radius: 999px; background: rgba(255,255,255,.13); color: var(--board-ink); opacity: .9;
+}
+.sync-badge[data-mode="off"] { background: rgba(255,255,255,.06); opacity: .6; }
+.sync-badge[data-mode="ok"]::before { content: "● "; color: #7ED9A6; font-size: 8px; vertical-align: 1px; }
 
 nav.tabs {
   position: sticky; top: 0; z-index: 20;
@@ -290,6 +296,7 @@ svg .jp { font-family: inherit; }
   <div class="board-top">
     <span class="app-label">SCOREBOOK</span>
     <h1 id="team-name-h">チーム</h1>
+    <span class="sync-badge" id="sync-badge" data-mode="init">読み込み中…</span>
     <span class="season num" id="season-y"></span>
   </div>
 </header>
@@ -421,7 +428,69 @@ function load() {
   } catch (e) {}
   return sampleData();
 }
-function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+  pushRemote();
+}
+
+/* ── 共有データ同期（Firebase Realtime Database）──
+   誰でも編集OK方式: このURLを開いた全員が同じデータを読み書きする。
+   最後に保存した内容が勝つ（last-write-wins）。オフライン時はこの端末のみに保存。 */
+const SYNC_URL = "https://fp-scorebook-9c146c-default-rtdb.asia-southeast1.firebasedatabase.app";
+function setSync(mode, label) {
+  const el = document.getElementById("sync-badge");
+  if (el) { el.dataset.mode = mode; el.textContent = label; }
+}
+function fetchT(url, opts, ms) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms || 8000);
+  return fetch(url, { ...opts, signal: ctl.signal }).finally(() => clearTimeout(t));
+}
+async function remotePull() {
+  try {
+    const res = await fetchT(SYNC_URL + "/state.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const remote = await res.json();
+    if (remote && remote.players && remote.games && remote.atBats) {
+      state = migrate(remote);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+      setSync("ok", "同期済み");
+      render();
+      dailyBackup();
+    } else if (remote === null) {
+      pushRemote(); // リモートが空なら手元のデータを種として送る
+    } else {
+      setSync("off", "オフライン（この端末のみ）");
+    }
+  } catch (e) {
+    setSync("off", "オフライン（この端末のみ）");
+  }
+}
+let pushTimer = null;
+function pushRemote() {
+  clearTimeout(pushTimer);
+  setSync("saving", "保存中…");
+  pushTimer = setTimeout(async () => {
+    try {
+      state.updatedAt = new Date().toISOString();
+      const res = await fetchT(SYNC_URL + "/state.json", { method: "PUT", body: JSON.stringify(state) });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      setSync("ok", "同期済み");
+    } catch (e) {
+      setSync("off", "オフライン（この端末のみ）");
+    }
+  }, 800);
+}
+async function dailyBackup() {
+  // その日最初の閲覧時に共有データのスナップショットを残す（消してしまった時の復元用）
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const r = await fetchT(`${SYNC_URL}/backups/${day}.json?shallow=true`);
+    if (r.ok && (await r.json()) === null) {
+      await fetchT(`${SYNC_URL}/backups/${day}.json`, { method: "PUT", body: JSON.stringify(state) });
+    }
+  } catch (e) {}
+}
 
 /* ───────────────────────── stats ───────────────────────── */
 function calcStats(abs) {
@@ -916,7 +985,7 @@ function viewImport() {
   </div>
   <div class="card">
     <h2>データ管理</h2>
-    <p class="subtle" style="margin:0 0 10px">データはこの端末のブラウザにだけ保存されます。機種変更前などにバックアップを取ってください。</p>
+    <p class="subtle" style="margin:0 0 10px">データはチーム全体で共有されています。打席の追加・編集・削除は、このページを開く全員に反映されます（電波がない時はこの端末のみに保存され、ヘッダーに「オフライン」と表示されます）。</p>
     <div class="field"><label>チーム名</label><input type="text" id="set-teamname" value="${esc(state.teamName || "")}"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" id="backup-copy">バックアップをコピー</button>
@@ -1155,21 +1224,22 @@ function afterRender() {
   const restoreB = $("#restore"); if (restoreB) restoreB.addEventListener("click", () => {
     const res = parseImport($("#import-json").value.trim());
     if (!res.backup) { showToast("テキスト欄にバックアップJSONを貼り付けてください"); return; }
-    if (!confirm("現在のデータをすべて置き換えます。よろしいですか?")) return;
+    if (!confirm("現在のデータをすべて置き換えます。チーム全員の共有データにも反映されます。よろしいですか?")) return;
     state = res.backup; save(); go({ tab: "stats", playerId: null, gameId: null }); showToast("復元しました");
   });
   const resetB = $("#reset-sample"); if (resetB) resetB.addEventListener("click", () => {
-    if (!confirm("現在のデータを消して初期データ（2026-07-26 紅白戦の読み取り結果）に戻します。よろしいですか?")) return;
+    if (!confirm("現在のデータを消して初期データ（2026-07-26 紅白戦の読み取り結果）に戻します。チーム全員の共有データにも反映されます。よろしいですか?")) return;
     state = sampleData(); save(); go({ tab: "stats", playerId: null, gameId: null }); showToast("初期データに戻しました");
   });
   const wipeB = $("#wipe"); if (wipeB) wipeB.addEventListener("click", () => {
-    if (!confirm("全データを削除します。この操作は元に戻せません。よろしいですか?")) return;
+    if (!confirm("全データを削除します。チーム全員の共有データからも消えます。よろしいですか?")) return;
     state = { teamName: state.teamName, players: [], games: [], atBats: [] };
     save(); go({ tab: "stats", playerId: null, gameId: null }); showToast("削除しました");
   });
 }
 
 render();
+remotePull();
 </script>
 
 </body>
