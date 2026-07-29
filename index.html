@@ -185,6 +185,12 @@ table.stats td.name { font-family: inherit; font-weight: 600; }
 table.stats tr.rowlink { cursor: pointer; }
 table.stats tr.rowlink:hover td { background: var(--surface2); }
 
+/* player detail stat grid */
+.statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 22px; }
+.sg-cell { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.sg-l { font-size: 12.5px; color: var(--ink2); }
+.sg-v { font-size: 16px; font-variant-numeric: tabular-nums; }
+
 /* chips */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -349,26 +355,26 @@ function sampleData() {
   const games = [
     { id: "g1", date: "2026-07-26", opponent: "紅白戦（林試の森）", scoreFor: 5, scoreAgainst: 4 },
   ];
-  // [playerIdx(1-18), inning, result, direction, rbi, run, note]
+  // [playerIdx(1-18), inning, result, direction, rbi, run, note, 盗塁数]
   const raw = [
-    [1,1,"単打","三",0,1,""],
-    [2,1,"野選","捕",0,1,"要確認: 2FC(捕の野選)と判読"],
+    [1,1,"単打","三",0,1,"",1],
+    [2,1,"野選","捕",0,1,"要確認: 2FC(捕の野選)と判読",1],
     [3,1,"ゴロ","遊",0,0,"要確認: 6-3。この間の生還なら打点1"],
     [4,1,"ゴロ","一",0,0,"要確認: 3A。打点の可能性"],
     [5,1,"三振","",0,0,"要確認: 振り逃げ2-3でアウトと判読"],
-    [6,2,"失策","投",0,1,"1-3Eで出塁と判読"],
+    [6,2,"失策","投",0,1,"1-3Eで出塁と判読",1],
     [7,2,"三振","",0,0,""],
     [8,2,"ゴロ","投",0,0,"要確認: 1-3。犠打の可能性"],
     [1,2,"三塁打","左",0,1,""],
     [2,2,"失策","遊",0,1,"6Eで出塁と判読"],
-    [3,2,"失策","遊",0,0,"要確認: 単打の可能性"],
+    [3,2,"失策","遊",0,0,"要確認: 単打の可能性",1],
     [4,2,"三振","",0,0,"要確認: 2TO(振り逃げタッチアウト?)"],
-    [9,1,"単打","中",0,0,"ライナー性(ℓ/8)"],
+    [9,1,"単打","中",0,0,"ライナー性(ℓ/8)",1],
     [10,1,"三振","",0,0,"要確認: 2TO(振り逃げタッチアウト?)"],
     [11,1,"三振","",0,0,"要確認: 2TO(振り逃げタッチアウト?)"],
     [12,1,"ゴロ","一",0,0,"3A"],
     [13,2,"ゴロ","捕",0,0,"要確認: 2-3。バントか振り逃げの可能性"],
-    [14,2,"単打","右",0,1,""],
+    [14,2,"単打","右",0,1,"",1],
     [15,2,"三振","",0,0,""],
     [16,2,"失策","捕",0,1,"要確認: 振り逃げ+捕手悪送球(2-3E)と判読"],
     [17,2,"三塁打","右",0,1,""],
@@ -379,12 +385,13 @@ function sampleData() {
   const atBats = raw.map((r, i) => ({
     id: "g1_ab" + i, gameId: "g1", playerId: "p" + r[0],
     inning: r[1], result: r[2], direction: r[3], rbi: r[4], run: !!r[5], note: r[6],
+    sb: r[7] || 0, cs: 0,
     side: i <= 11 ? "T" : "B", // 紅白戦: 1枚目のチーム=先攻(表)、2枚目=後攻(裏)
   }));
   return { teamName: "不動パイレーツEチーム", players, games, atBats, dataRev: DATA_REV };
 }
 
-const DATA_REV = 3;
+const DATA_REV = 4;
 function migrate(s) {
   const rev = s.dataRev || 1;
   if (rev >= DATA_REV) return s;
@@ -406,6 +413,14 @@ function migrate(s) {
     for (const a of s.atBats || []) {
       const m = /^g1_ab(\d+)$/.exec(a.id || "");
       if (m && a.side === undefined) a.side = (+m[1] <= 11) ? "T" : "B";
+    }
+  }
+  if (rev < 4) {
+    // v4: 7/26紅白戦のスコアブックのS'記号（盗塁）を反映
+    const sbFix = { g1_ab0: 1, g1_ab1: 1, g1_ab5: 1, g1_ab10: 1, g1_ab12: 1, g1_ab17: 1 };
+    for (const a of s.atBats || []) {
+      if (a.sb === undefined) a.sb = sbFix[a.id] || 0;
+      if (a.cs === undefined) a.cs = 0;
     }
   }
   s.dataRev = DATA_REV;
@@ -452,10 +467,12 @@ async function remotePull() {
     if (!res.ok) throw new Error("HTTP " + res.status);
     const remote = await res.json();
     if (remote && remote.players && remote.games && remote.atBats) {
+      const remoteRev = remote.dataRev || 1;
       state = migrate(remote);
       try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
       setSync("ok", "同期済み");
       render();
+      if (state.dataRev !== remoteRev) pushRemote(); // マイグレーション結果を共有側にも反映
       dailyBackup();
     } else if (remote === null) {
       pushRemote(); // リモートが空なら手元のデータを種として送る
@@ -494,26 +511,34 @@ async function dailyBackup() {
 
 /* ───────────────────────── stats ───────────────────────── */
 function calcStats(abs) {
-  const s = { pa:0, ab:0, h:0, b1:0, b2:0, b3:0, hr:0, rbi:0, run:0, bb:0, so:0, tb:0, sac:0, sf:0 };
+  const s = { pa:0, ab:0, h:0, b1:0, b2:0, b3:0, hr:0, rbi:0, run:0, bb:0, hbp:0, so:0, tb:0, sac:0, sf:0, dp:0, sb:0, cs:0 };
+  const gids = new Set();
   for (const a of abs) {
     const r = RESULTS[a.result]; if (!r) continue;
     s.pa++;
+    gids.add(a.gameId);
     s.rbi += a.rbi || 0;
+    s.sb += a.sb || 0;
+    s.cs += a.cs || 0;
     if (a.run) s.run++;
-    if (r.cat === "bb" || r.cat === "hbp") { s.bb++; continue; }
+    if (r.cat === "bb") { s.bb++; continue; }
+    if (r.cat === "hbp") { s.hbp++; continue; }
     if (r.cat === "sac") { s.sac++; continue; }
     if (r.cat === "sf") { s.sf++; continue; }
     s.ab++;
     if (r.so) s.so++;
+    if (a.result === "併殺打") s.dp++;
     if (r.cat === "hit") {
       s.h++; s.tb += r.bases;
       if (r.bases === 1) s.b1++; else if (r.bases === 2) s.b2++;
       else if (r.bases === 3) s.b3++; else s.hr++;
     }
   }
+  s.games = gids.size;
+  s.bb4d = s.bb + s.hbp;
   s.avg = s.ab ? s.h / s.ab : null;
-  const obpDen = s.ab + s.bb + s.sf;
-  s.obp = obpDen ? (s.h + s.bb) / obpDen : null;
+  const obpDen = s.ab + s.bb + s.hbp + s.sf;
+  s.obp = obpDen ? (s.h + s.bb + s.hbp) / obpDen : null;
   s.slg = s.ab ? s.tb / s.ab : null;
   s.ops = (s.obp !== null && s.slg !== null) ? s.obp + s.slg : null;
   return s;
@@ -711,7 +736,7 @@ function viewStats() {
   });
   const cols = [
     ["name","選手"],["pa","打席"],["ab","打数"],["h","安打"],["hr","本"],["rbi","打点"],["run","得点"],
-    ["bb","四死球"],["so","三振"],["avg","打率"],["obp","出塁率"],["ops","OPS"],
+    ["bb4d","四死球"],["so","三振"],["sb","盗塁"],["avg","打率"],["obp","出塁率"],["ops","OPS"],
   ];
   const wins = state.games.filter(g => g.scoreFor > g.scoreAgainst).length;
   const losses = state.games.filter(g => g.scoreFor < g.scoreAgainst).length;
@@ -732,7 +757,7 @@ function viewStats() {
         <tr class="rowlink" data-player="${p.id}">
           <td class="name">${p.number != null ? `<span class="num" style="color:var(--ink3);margin-right:6px">${p.number}</span>` : ""}${esc(p.name)}</td>
           <td>${s.pa}</td><td>${s.ab}</td><td>${s.h}</td><td>${s.hr}</td><td>${s.rbi}</td><td>${s.run}</td>
-          <td>${s.bb}</td><td>${s.so}</td>
+          <td>${s.bb4d}</td><td>${s.so}</td><td>${s.sb}</td>
           <td><b>${fmtRate(s.avg)}</b></td><td>${fmtRate(s.obp)}</td><td>${fmtRate(s.ops)}</td>
         </tr>`).join("")}
       </tbody>
@@ -761,6 +786,19 @@ function viewPlayer(pid) {
     <div class="tile"><div class="t-label">打点</div><div class="t-value">${s.rbi}</div></div>
     <div class="tile"><div class="t-label">本塁打</div><div class="t-value">${s.hr}</div></div>
   </div>
+  <div class="card">
+    <h2>詳細スタッツ</h2>
+    <div class="statgrid">
+      ${[
+        ["打率", fmtRate(s.avg)], ["試合", s.games], ["打席", s.pa], ["打数", s.ab],
+        ["安打", s.h], ["二塁打", s.b2], ["三塁打", s.b3], ["本塁打", s.hr],
+        ["塁打", s.tb], ["打点", s.rbi], ["得点", s.run], ["三振", s.so],
+        ["四球", s.bb], ["死球", s.hbp], ["犠打", s.sac], ["犠飛", s.sf],
+        ["盗塁", s.sb], ["盗塁死", s.cs], ["併殺打", s.dp],
+        ["出塁率", fmtRate(s.obp)], ["長打率", fmtRate(s.slg)], ["OPS", fmtRate(s.ops)],
+      ].map(([l, v]) => `<div class="sg-cell"><span class="sg-l">${l}</span><span class="sg-v num">${v}</span></div>`).join("")}
+    </div>
+  </div>
   <div class="card"><h2>打球方向</h2>${sprayChartSVG(abs)}</div>
   <div class="card"><h2>打率の推移</h2>${trendChartSVG(pid)}</div>
   <div class="card"><h2>結果の内訳</h2>${resultBreakdownHTML(abs)}</div>
@@ -784,7 +822,7 @@ function paRowHTML(a, withName) {
     <span class="pa-inning">${a.inning}回</span>
     ${withName ? `<span class="pa-name">${esc(p ? p.name : "?")}</span>` : ""}
     <span class="badge ${resultBadgeClass(a.result)}">${esc(a.result)}</span>
-    <span class="pa-detail">${[a.direction ? esc(a.direction) + "方向" : null, a.rbi ? a.rbi + "打点" : null, a.run ? "得点" : null].filter(Boolean).join("・")}</span>
+    <span class="pa-detail">${[a.direction ? esc(a.direction) + "方向" : null, a.rbi ? a.rbi + "打点" : null, a.sb ? "盗塁" + (a.sb > 1 ? a.sb : "") : null, a.cs ? "盗塁死" : null, a.run ? "得点" : null].filter(Boolean).join("・")}</span>
     ${a.note ? `<span class="pa-note">⚠ ${esc(a.note)}</span>` : ""}
     <span class="pa-actions">
       <button class="icon-btn" data-edit-ab="${a.id}" aria-label="編集">編集</button>
@@ -851,7 +889,7 @@ function viewGame(gid) {
     inningsHTML = halves.join("") || `<div class="empty">打席がまだありません</div>`;
   } else {
     const s = calcStats(abs);
-    summaryHTML = `<div class="subtle num">チーム: ${s.h}安打 / ${s.ab}打数（${fmtRate(s.avg)}）・四死球${s.bb}・三振${s.so}</div>`;
+    summaryHTML = `<div class="subtle num">チーム: ${s.h}安打 / ${s.ab}打数（${fmtRate(s.avg)}）・四死球${s.bb4d}・三振${s.so}</div>`;
     inningsHTML = innings.map(inn => `
     <div class="card">
       <h2>${inn}回の攻撃</h2>
@@ -925,13 +963,19 @@ function viewInput() {
       <div class="field"><label>イニング</label>
         <div class="stepper"><button id="inn-dn" aria-label="イニングを減らす">−</button><span class="stepper-v">${form.inning}</span><button id="inn-up" aria-label="イニングを増やす">＋</button></div>
       </div>
-      <div class="field"><label>打点 / 得点</label>
-        <div style="display:flex;gap:14px;align-items:center">
-          <div class="stepper"><button id="rbi-dn" aria-label="打点を減らす">−</button><span class="stepper-v">${form.rbi}</span><button id="rbi-up" aria-label="打点を増やす">＋</button></div>
-          <label class="check-row"><input type="checkbox" id="f-run" ${form.run ? "checked" : ""}>本人が得点</label>
-        </div>
+      <div class="field"><label>打点</label>
+        <div class="stepper"><button id="rbi-dn" aria-label="打点を減らす">−</button><span class="stepper-v">${form.rbi}</span><button id="rbi-up" aria-label="打点を増やす">＋</button></div>
       </div>
     </div>
+    <div class="row2">
+      <div class="field"><label>盗塁</label>
+        <div class="stepper"><button id="sb-dn" aria-label="盗塁を減らす">−</button><span class="stepper-v">${form.sb || 0}</span><button id="sb-up" aria-label="盗塁を増やす">＋</button></div>
+      </div>
+      <div class="field"><label>盗塁死</label>
+        <div class="stepper"><button id="cs-dn" aria-label="盗塁死を減らす">−</button><span class="stepper-v">${form.cs || 0}</span><button id="cs-up" aria-label="盗塁死を増やす">＋</button></div>
+      </div>
+    </div>
+    <div class="field"><label class="check-row"><input type="checkbox" id="f-run" ${form.run ? "checked" : ""}>本人が得点（ホームに帰った）</label></div>
     <div class="field"><label>結果</label>
       <div class="chips" id="f-results">
         ${RESULT_KEYS.map(k => `<button class="chip ${catCls(k)} ${form.result === k ? "on" : ""}" data-res="${k}">${k}</button>`).join("")}
@@ -1005,7 +1049,7 @@ function buildPrompt() {
 {
   "game": { "date": "YYYY-MM-DD", "opponent": "相手チーム名", "scoreFor": 自チームの得点, "scoreAgainst": 相手の得点 },
   "atBats": [
-    { "player": "選手名", "number": 背番号または null, "inning": 回, "result": "結果", "direction": "方向", "rbi": 打点, "run": 本人が得点したら true, "note": "" }
+    { "player": "選手名", "number": 背番号または null, "inning": 回, "result": "結果", "direction": "方向", "rbi": 打点, "run": 本人が得点したら true, "sb": 盗塁数, "cs": 盗塁死数, "note": "" }
   ]
 }
 
@@ -1013,6 +1057,8 @@ function buildPrompt() {
 - result は必ず次のいずれか: ${RESULT_KEYS.join(" / ")}
 - direction は打球の方向で、次のいずれか（打球がない場合は空文字 ""）: ${DIRS.join(" / ")}
 - 自チームの攻撃の打席だけを、イニング順にすべて出力する
+- 盗塁: ダイヤモンドの辺に沿った黒の「S」「S'」記号は盗塁。その打者の sb に個数を入れる（なければ0）。盗塁でタッチアウト（TO等）になった場合は cs に個数
+- 安打の赤線がダイヤモンドの辺を何本なぞっているかで単打/二塁打/三塁打を判定する（1辺=単打、2辺=二塁打、3辺=三塁打、全周+打撃での生還=本塁打）
 - 読み取りに自信がない打席は note に「要確認: 理由」を書く（自信があれば空文字）
 - 選手名は次の登録名簿の表記に合わせる: ${roster || "（名簿未登録。読み取った名前をそのまま使う）"}
 - 自チーム名: ${state.teamName || "不明"}`;
@@ -1037,6 +1083,8 @@ function parseImport(text) {
     row.run = !!row.run;
     row.note = typeof row.note === "string" ? row.note : "";
     row.side = (row.side === "表" || row.side === "T") ? "T" : (row.side === "裏" || row.side === "B") ? "B" : undefined;
+    row.sb = Math.max(0, parseInt(row.sb, 10) || 0);
+    row.cs = Math.max(0, parseInt(row.cs, 10) || 0);
     if (!row.player) errs.push(`${i + 1}件目: player（選手名）がありません`);
     return row;
   });
@@ -1066,7 +1114,7 @@ function doImport(pv) {
     state.atBats.push({
       id: uid("ab"), gameId: gid, playerId: byName[a.player].id,
       inning: a.inning, result: a.result, direction: a.direction || "",
-      rbi: a.rbi, run: a.run, note: a.note || "", side: a.side,
+      rbi: a.rbi, run: a.run, sb: a.sb || 0, cs: a.cs || 0, note: a.note || "", side: a.side,
     });
   }
   save();
@@ -1144,6 +1192,10 @@ function afterRender() {
   step("#inn-dn", () => { form.inning = Math.max(1, form.inning - 1); render(); });
   step("#rbi-up", () => { form.rbi = Math.min(4, form.rbi + 1); render(); });
   step("#rbi-dn", () => { form.rbi = Math.max(0, form.rbi - 1); render(); });
+  step("#sb-up", () => { form.sb = Math.min(3, (form.sb || 0) + 1); render(); });
+  step("#sb-dn", () => { form.sb = Math.max(0, (form.sb || 0) - 1); render(); });
+  step("#cs-up", () => { form.cs = Math.min(2, (form.cs || 0) + 1); render(); });
+  step("#cs-dn", () => { form.cs = Math.max(0, (form.cs || 0) - 1); render(); });
   const frun = $("#f-run"); if (frun) frun.addEventListener("change", () => { form.run = frun.checked; });
   main.querySelectorAll("#f-results [data-res]").forEach(c => c.addEventListener("click", () => { form.result = c.dataset.res; render(); }));
   main.querySelectorAll("#f-dirs [data-dir]").forEach(c => c.addEventListener("click", () => { form.direction = c.dataset.dir; render(); }));
@@ -1164,17 +1216,17 @@ function afterRender() {
     const sideVal = isSplitGame(gameOf(form.gameId)) ? (form.side || "T") : undefined;
     if (route.editAbId) {
       const a = state.atBats.find(x => x.id === route.editAbId);
-      if (a) Object.assign(a, { gameId: form.gameId, playerId: form.playerId, inning: form.inning, result: form.result, direction: form.direction, rbi: form.rbi, run: form.run, note: "", side: sideVal });
+      if (a) Object.assign(a, { gameId: form.gameId, playerId: form.playerId, inning: form.inning, result: form.result, direction: form.direction, rbi: form.rbi, run: form.run, sb: form.sb || 0, cs: form.cs || 0, note: "", side: sideVal });
       save();
       const gid = a ? a.gameId : null;
       form = { gameId: null, playerId: null, inning: 1, result: null, direction: "", rbi: 0, run: false, newGame: false };
       go({ tab: "games", gameId: gid, editAbId: null });
       showToast("打席を更新しました");
     } else {
-      state.atBats.push({ id: uid("ab"), gameId: form.gameId, playerId: form.playerId, inning: form.inning, result: form.result, direction: form.direction, rbi: form.rbi, run: form.run, note: "", side: sideVal });
+      state.atBats.push({ id: uid("ab"), gameId: form.gameId, playerId: form.playerId, inning: form.inning, result: form.result, direction: form.direction, rbi: form.rbi, run: form.run, sb: form.sb || 0, cs: form.cs || 0, note: "", side: sideVal });
       save();
       const p = playerOf(form.playerId);
-      form.playerId = null; form.result = null; form.direction = ""; form.rbi = 0; form.run = false;
+      form.playerId = null; form.result = null; form.direction = ""; form.rbi = 0; form.run = false; form.sb = 0; form.cs = 0;
       render();
       showToast((p ? p.name + " の" : "") + "打席を記録しました");
     }
