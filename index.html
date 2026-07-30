@@ -151,6 +151,12 @@ table.line-score th { color: var(--ink3); font-size: 11px; font-weight: 600; }
 table.line-score td.ls-team { font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--ink2); text-align: left; padding-left: 0; white-space: nowrap; }
 table.line-score .ls-total { font-weight: 700; font-size: 15px; border-left: 1px solid var(--line); }
 table.line-score .ls-stat { color: var(--ink3); font-size: 12px; }
+table.lineup { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+table.lineup th, table.lineup td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+table.lineup th { color: var(--ink3); font-size: 11px; font-weight: 600; letter-spacing: .06em; }
+table.lineup td.num, table.lineup th:first-child { text-align: center; font-family: var(--font-num); }
+table.lineup .lu-name { font-weight: 600; white-space: nowrap; }
+table.lineup .lu-bats { margin-left: 5px; font-size: 10.5px; color: var(--ink3); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
 .eyebrow { font-size: 11px; letter-spacing: .15em; color: var(--ink3); font-weight: 600; }
 .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .btn {
@@ -345,12 +351,42 @@ const DIRS = ["投","捕","一","二","三","遊","左","中","右"];
 let uidSeq = 0;
 const uid = p => p + "_" + Date.now().toString(36) + "_" + (uidSeq++).toString(36);
 
+// 打ち方（スコアブックの R/L 列）。未記載は右
+const SEED_BATS = { p7: "左", p9: "左", p14: "左" };
+// 守備の初期データ: [playerIdx, side, 打順, 守備位置(交代順), note]
+function seedFielding() {
+  const rows = [
+    [1,"T",1,["遊"],""],
+    [2,"T",2,["投"],"要確認: シート欄は1(投)。大人投手の場合は修正を"],
+    [3,"T",3,["左"],""],
+    [4,"T",4,["右"],""],
+    [5,"T",5,["二","三"],""],
+    [6,"T",6,["三"],"要確認: 交代先が判読不能"],
+    [7,"T",7,["一","二"],""],
+    [8,"T",8,["中","一"],""],
+    [9,"B",1,["投","二"],"要確認: シート欄は1(投)。大人投手の場合は修正を"],
+    [10,"B",2,["左"],""],
+    [11,"B",3,["二"],""],
+    [12,"B",4,["右"],""],
+    [13,"B",5,["左"],"要確認: なぎと同じ左と判読。誤読の可能性"],
+    [14,"B",6,["中","投"],"要確認: 交代先が1(投)と判読"],
+    [15,"B",7,["捕","一"],""],
+    [16,"B",8,["三"],""],
+    [17,"B",9,["一","遊"],""],
+    [18,"B",10,["遊"],"要確認: 交代先が判読不能"],
+  ];
+  return rows.map((r, i) => ({
+    id: "g1_f" + i, gameId: "g1", playerId: "p" + r[0],
+    side: r[1], order: r[2], positions: r[3], errors: 0, note: r[4] || "",
+  }));
+}
+
 function sampleData() {
   // 2026-07-26 紅白戦（林試の森）— 紙スコアブックのAI読み取り結果
   const players = [
     "まなと","けんご","じょう","こうや","ありた","しゅうじ","はる","なつき",
     "りょうたろ","なぎ","きみと","だいち","こうだい","いっさ","いおり","しんのすけ","あき","なおや"
-  ].map((name, i) => ({ id: "p" + (i + 1), name, number: null }));
+  ].map((name, i) => ({ id: "p" + (i + 1), name, number: null, bats: SEED_BATS["p" + (i + 1)] || "右" }));
   const games = [
     { id: "g1", date: "2026-07-26", opponent: "紅白戦（林試の森）", scoreFor: 5, scoreAgainst: 4 },
   ];
@@ -387,10 +423,10 @@ function sampleData() {
     sb: r[7] || 0, cs: 0,
     side: i <= 11 ? "T" : "B", // 紅白戦: 1枚目のチーム=先攻(表)、2枚目=後攻(裏)
   }));
-  return { teamName: "不動パイレーツEチーム", players, games, atBats, dataRev: DATA_REV };
+  return { teamName: "不動パイレーツEチーム", players, games, atBats, fielding: seedFielding(), dataRev: DATA_REV };
 }
 
-const DATA_REV = 4;
+const DATA_REV = 5;
 function migrate(s) {
   const rev = s.dataRev || 1;
   if (rev >= DATA_REV) return s;
@@ -420,6 +456,15 @@ function migrate(s) {
     for (const a of s.atBats || []) {
       if (a.sb === undefined) a.sb = sbFix[a.id] || 0;
       if (a.cs === undefined) a.cs = 0;
+    }
+  }
+  if (rev < 5) {
+    // v5: 守備記録（シート列）と打ち方（R/L列）を追加
+    if (!Array.isArray(s.fielding)) {
+      s.fielding = (s.games || []).some(g => g.id === "g1") ? seedFielding() : [];
+    }
+    for (const p of s.players || []) {
+      if (p.bats === undefined && /^p([1-9]|1[0-8])$/.test(p.id || "")) p.bats = SEED_BATS[p.id] || "右";
     }
   }
   s.dataRev = DATA_REV;
@@ -549,6 +594,8 @@ const playerOf = id => state.players.find(p => p.id === id);
 const sortedGames = () => [...state.games].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 const absOfGame = gid => state.atBats.filter(a => a.gameId === gid);
 const absOfPlayer = pid => state.atBats.filter(a => a.playerId === pid);
+const fieldingOfGame = gid => (state.fielding || []).filter(f => f.gameId === gid);
+const fieldingOfPlayer = pid => (state.fielding || []).filter(f => f.playerId === pid);
 const fmtDate = d => d ? d.replace(/^\d{4}-/, "").replace("-", "/") : "";
 // 紅白戦など対外試合でないものは「vs」を付けない
 const vsLabel = opp => { const o = String(opp || "不明"); return o.includes("紅白戦") ? o : "vs " + o; };
@@ -772,10 +819,14 @@ function viewPlayer(pid) {
   const abs = absOfPlayer(pid);
   const s = calcStats(abs);
   const games = sortedGames().filter(g => abs.some(a => a.gameId === g.id));
+  const fds = fieldingOfPlayer(pid);
+  const posCount = {}; let fdErr = 0;
+  fds.forEach(f => { (f.positions || []).forEach(x => { posCount[x] = (posCount[x] || 0) + 1; }); fdErr += f.errors || 0; });
   return `
   <button class="btn small back" id="back-stats">← 成績一覧へ</button>
   <div class="hdr-flex" style="margin-bottom:10px">
     <h2 style="margin:0;font-size:21px">${p.number != null ? `<span class="num" style="color:var(--ink3)">#${p.number}</span> ` : ""}${esc(p.name)}</h2>
+    ${p.bats ? `<span class="subtle">${esc(p.bats)}打ち</span>` : ""}
     <span class="subtle">${games.length}試合 ${s.pa}打席</span>
   </div>
   <div class="tiles" style="margin-bottom:14px">
@@ -795,8 +846,15 @@ function viewPlayer(pid) {
         ["四球", s.bb], ["死球", s.hbp], ["犠打", s.sac], ["犠飛", s.sf],
         ["盗塁", s.sb], ["盗塁死", s.cs], ["併殺打", s.dp],
         ["出塁率", fmtRate(s.obp)], ["長打率", fmtRate(s.slg)], ["OPS", fmtRate(s.ops)],
+        ["失策", fdErr],
       ].map(([l, v]) => `<div class="sg-cell"><span class="sg-l">${l}</span><span class="sg-v num">${v}</span></div>`).join("")}
     </div>
+  </div>
+  <div class="card"><h2>守備</h2>
+    ${fds.length ? `
+      <div class="chips">${Object.entries(posCount).map(([pos, n]) => `<span class="chip" style="pointer-events:none">${esc(pos)}<span class="num" style="margin-left:4px;opacity:.7">×${n}</span></span>`).join("")}</div>
+      <div class="subtle num" style="margin-top:8px">失策 ${fdErr} ・ 守備記録 ${fds.length}試合分</div>`
+    : `<div class="empty">守備の記録はまだありません（各試合ページの「スタメン・守備」から登録できます）</div>`}
   </div>
   <div class="card"><h2>打球方向</h2>${sprayChartSVG(abs)}</div>
   <div class="card"><h2>打率の推移</h2>${trendChartSVG(pid)}</div>
@@ -827,6 +885,29 @@ function paRowHTML(a, withName) {
       <button class="icon-btn" data-edit-ab="${a.id}" aria-label="編集">編集</button>
       <button class="icon-btn del" data-del-ab="${a.id}" aria-label="削除">削除</button>
     </span>
+  </div>`;
+}
+
+function lineupCardHTML(g, side) {
+  const rows = fieldingOfGame(g.id)
+    .filter(f => side ? f.side === side : true)
+    .sort((a, b) => (a.order || 99) - (b.order || 99));
+  const title = side ? `スタメン・守備（${side === "T" ? "先攻・表" : "後攻・裏"}）` : "スタメン・守備";
+  return `<div class="card"><h2>${title}</h2>
+    ${rows.length ? `<div class="tbl-wrap"><table class="lineup">
+      <thead><tr><th>打順</th><th>選手</th><th>守備</th><th>失策</th><th></th></tr></thead>
+      <tbody>${rows.map(f => {
+        const p = playerOf(f.playerId);
+        return `<tr>
+          <td class="num">${f.order || "−"}</td>
+          <td class="lu-name">${esc(p ? p.name : "?")}${p && p.bats ? `<span class="lu-bats">${esc(p.bats)}</span>` : ""}</td>
+          <td>${(f.positions || []).map(esc).join(" → ") || "−"}${f.note ? ` <span class="warn-text" title="${esc(f.note)}">⚠</span>` : ""}</td>
+          <td class="num">${f.errors || 0}</td>
+          <td style="text-align:right;white-space:nowrap"><button class="icon-btn" data-edit-fd="${f.id}">編集</button><button class="icon-btn del" data-del-fd="${f.id}">削除</button></td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>` : `<div class="empty">まだ登録がありません</div>`}
+    <button class="btn small" data-add-fd="${side || ""}" data-add-fd-game="${g.id}" style="margin-top:8px">＋ 選手を追加</button>
   </div>`;
 }
 
@@ -912,6 +993,7 @@ function viewGame(gid) {
       <button class="btn small danger" id="del-game">試合を削除</button>
     </div>
   </div>
+  ${split ? lineupCardHTML(g, "T") + lineupCardHTML(g, "B") : lineupCardHTML(g, null)}
   ${inningsHTML}`;
 }
 
@@ -1049,6 +1131,9 @@ function buildPrompt() {
   "game": { "date": "YYYY-MM-DD", "opponent": "相手チーム名", "scoreFor": 自チームの得点, "scoreAgainst": 相手の得点 },
   "atBats": [
     { "player": "選手名", "number": 背番号または null, "inning": 回, "result": "結果", "direction": "方向", "rbi": 打点, "run": 本人が得点したら true, "sb": 盗塁数, "cs": 盗塁死数, "note": "" }
+  ],
+  "fielding": [
+    { "player": "選手名", "order": 打順, "positions": ["守備位置"], "errors": 失策数, "bats": "右" または "左", "note": "" }
   ]
 }
 
@@ -1057,6 +1142,9 @@ function buildPrompt() {
 - direction は打球の方向で、次のいずれか（打球がない場合は空文字 ""）: ${DIRS.join(" / ")}
 - 自チームの攻撃の打席だけを、イニング順にすべて出力する
 - 盗塁: ダイヤモンドの辺に沿った黒の「S」「S'」記号は盗塁。その打者の sb に個数を入れる（なければ0）。盗塁でタッチアウト（TO等）になった場合は cs に個数
+- 守備: 「シート」「先発」列の数字は守備位置（1=投 2=捕 3=一 4=二 5=三 6=遊 7=左 8=中 9=右）。fielding の positions に漢字で入れる。数字が2つ並ぶ場合は途中交代なので順に並べる
+- 「打ち方」列の R は bats:"右"、L は bats:"左"
+- 失策: 守備中のエラー（E記号が相手打者の枠に付く）が誰のものか特定できる場合のみ errors に計上。不明なら0のままにして note に書く
 - 安打の赤線がダイヤモンドの辺を何本なぞっているかで単打/二塁打/三塁打を判定する（1辺=単打、2辺=二塁打、3辺=三塁打、全周+打撃での生還=本塁打）
 - 読み取りに自信がない打席は note に「要確認: 理由」を書く（自信があれば空文字）
 - 選手名は次の登録名簿の表記に合わせる: ${roster || "（名簿未登録。読み取った名前をそのまま使う）"}
@@ -1088,9 +1176,20 @@ function parseImport(text) {
     return row;
   });
   if (errs.length) return { error: errs.join("\n") };
+  const fielding = Array.isArray(data.fielding) ? data.fielding.map((f, i) => {
+    const row = { ...f };
+    if (!row.player) { warns.push(`守備${i + 1}件目: player（選手名）がないため無視しました`); return null; }
+    row.order = Math.max(0, parseInt(row.order, 10) || 0);
+    row.errors = Math.max(0, parseInt(row.errors, 10) || 0);
+    row.positions = (Array.isArray(row.positions) ? row.positions : []).filter(x => DIRS.includes(x));
+    row.bats = (row.bats === "右" || row.bats === "左") ? row.bats : undefined;
+    row.side = (row.side === "表" || row.side === "T") ? "T" : (row.side === "裏" || row.side === "B") ? "B" : undefined;
+    row.note = typeof row.note === "string" ? row.note : "";
+    return row;
+  }).filter(Boolean) : [];
   const knownNames = new Set(state.players.map(p => p.name));
-  const newPlayers = [...new Set(abs.map(a => a.player))].filter(n => !knownNames.has(n));
-  return { game: g, abs, warns, newPlayers };
+  const newPlayers = [...new Set([...abs.map(a => a.player), ...fielding.map(f => f.player)])].filter(n => !knownNames.has(n));
+  return { game: g, abs, fielding, warns, newPlayers };
 }
 
 function doImport(pv) {
@@ -1109,6 +1208,15 @@ function doImport(pv) {
     const pl = { id: uid("p"), name, number: src && src.number != null ? parseInt(src.number, 10) || null : null };
     state.players.push(pl); byName[name] = pl;
   }
+  if (!state.fielding) state.fielding = [];
+  for (const f of pv.fielding || []) {
+    const pl = byName[f.player]; if (!pl) continue;
+    if (f.bats && pl.bats === undefined) pl.bats = f.bats;
+    state.fielding.push({
+      id: uid("f"), gameId: gid, playerId: pl.id, side: f.side,
+      order: f.order, positions: f.positions, errors: f.errors, note: f.note || "",
+    });
+  }
   for (const a of pv.abs) {
     state.atBats.push({
       id: uid("ab"), gameId: gid, playerId: byName[a.player].id,
@@ -1118,6 +1226,17 @@ function doImport(pv) {
   }
   save();
   return gid;
+}
+
+function editFieldingPrompts(f) {
+  const ord = prompt("打順（数字）", f.order || ""); if (ord === null) { save(); render(); return; }
+  const pos = prompt("守備位置（例: 遊 ／ 途中交代があれば 遊→三）", (f.positions || []).join("→")); if (pos === null) { save(); render(); return; }
+  const err = prompt("失策数", f.errors || 0); if (err === null) { save(); render(); return; }
+  f.order = parseInt(ord, 10) || 0;
+  f.positions = pos.split(/[→,、\s\/]+/).filter(Boolean).filter(x => DIRS.includes(x));
+  f.errors = Math.max(0, parseInt(err, 10) || 0);
+  f.note = "";
+  save(); render(); showToast("守備情報を保存しました");
 }
 
 /* ───────────────────────── events ───────────────────────── */
@@ -1160,6 +1279,28 @@ function afterRender() {
     state.games = state.games.filter(x => x.id !== g.id);
     save(); go({ gameId: null }); showToast("試合を削除しました");
   });
+  /* fielding rows */
+  main.querySelectorAll("[data-edit-fd]").forEach(b => b.addEventListener("click", () => {
+    const f = (state.fielding || []).find(x => x.id === b.dataset.editFd); if (!f) return;
+    editFieldingPrompts(f);
+  }));
+  main.querySelectorAll("[data-del-fd]").forEach(b => b.addEventListener("click", () => {
+    const f = (state.fielding || []).find(x => x.id === b.dataset.delFd); if (!f) return;
+    const p = playerOf(f.playerId);
+    if (!confirm(`${p ? p.name : ""} の守備記録を削除しますか?（全員に反映されます）`)) return;
+    state.fielding = state.fielding.filter(x => x.id !== f.id);
+    save(); render(); showToast("削除しました");
+  }));
+  main.querySelectorAll("[data-add-fd-game]").forEach(b => b.addEventListener("click", () => {
+    const name = prompt("選手名"); if (!name) return;
+    const q = name.trim();
+    const pl = state.players.find(p => p.name === q) || state.players.find(p => p.name.includes(q));
+    if (!pl) { alert("選手が見つかりません。先に「打席入力」タブの「＋選手追加」で登録してください。"); return; }
+    if (!state.fielding) state.fielding = [];
+    const f = { id: uid("f"), gameId: b.dataset.addFdGame, playerId: pl.id, side: b.dataset.addFd || undefined, order: 0, positions: [], errors: 0, note: "" };
+    state.fielding.push(f);
+    editFieldingPrompts(f);
+  }));
   /* PA row edit/delete (player & game views) */
   main.querySelectorAll("[data-edit-ab]").forEach(b => b.addEventListener("click", e => {
     e.stopPropagation();
@@ -1244,7 +1385,7 @@ function afterRender() {
     const checks = res.abs.filter(a => a.note).length;
     out.innerHTML = `<div class="import-preview">
       <h3>${esc(res.game.date || "日付不明")} vs ${esc(res.game.opponent || "不明")}（${parseInt(res.game.scoreFor, 10) || 0} - ${parseInt(res.game.scoreAgainst, 10) || 0}）</h3>
-      <div style="font-size:13.5px">打席 ${res.abs.length} 件${res.newPlayers.length ? `・新しい選手 ${res.newPlayers.length} 名を登録（${esc(res.newPlayers.join("、"))}）` : ""}${checks ? `・<span class="warn-text">要確認 ${checks} 件</span>` : ""}</div>
+      <div style="font-size:13.5px">打席 ${res.abs.length} 件${res.fielding && res.fielding.length ? `・守備 ${res.fielding.length} 件` : ""}${res.newPlayers.length ? `・新しい選手 ${res.newPlayers.length} 名を登録（${esc(res.newPlayers.join("、"))}）` : ""}${checks ? `・<span class="warn-text">要確認 ${checks} 件</span>` : ""}</div>
       ${res.warns.length ? `<div class="warn-text" style="margin-top:4px">${esc(res.warns.join(" / "))}</div>` : ""}
       <button class="btn primary" id="do-import" style="margin-top:10px">この内容で取り込む</button>
     </div>`;
@@ -1276,7 +1417,7 @@ function afterRender() {
     const res = parseImport($("#import-json").value.trim());
     if (!res.backup) { showToast("テキスト欄にバックアップJSONを貼り付けてください"); return; }
     if (!confirm("現在のデータをすべて置き換えます。チーム全員の共有データにも反映されます。よろしいですか?")) return;
-    state = res.backup; save(); go({ tab: "stats", playerId: null, gameId: null }); showToast("復元しました");
+    state = migrate(res.backup); save(); go({ tab: "stats", playerId: null, gameId: null }); showToast("復元しました");
   });
   const resetB = $("#reset-sample"); if (resetB) resetB.addEventListener("click", () => {
     if (!confirm("現在のデータを消して初期データ（2026-07-26 紅白戦の読み取り結果）に戻します。チーム全員の共有データにも反映されます。よろしいですか?")) return;
