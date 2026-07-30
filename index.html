@@ -353,38 +353,39 @@ const uid = p => p + "_" + Date.now().toString(36) + "_" + (uidSeq++).toString(3
 
 // 打ち方（スコアブックの R/L 列）。未記載は右
 const SEED_BATS = { p7: "左", p9: "左", p14: "左" };
-// 守備の初期データ: [playerIdx, side, 打順, 守備位置(交代順), note]
+// 守備の初期データ: [playerIdx, side, 打順, 守備位置(1個目=1回,2個目=2回), 失策, note]
+// ※投手は大人だが、「投」の子は投手の守備位置に入った（守備記録として有効）
 function seedFielding() {
   const rows = [
-    [1,"T",1,["遊"],""],
-    [2,"T",2,["投"],"要確認: シート欄は1(投)。大人投手の場合は修正を"],
-    [3,"T",3,["左"],""],
-    [4,"T",4,["右"],""],
-    [5,"T",5,["二","三"],""],
-    [6,"T",6,["三"],"要確認: 交代先が判読不能"],
-    [7,"T",7,["一","二"],""],
-    [8,"T",8,["中","一"],""],
-    [9,"B",1,["投","二"],"要確認: シート欄は1(投)。大人投手の場合は修正を"],
-    [10,"B",2,["左"],""],
-    [11,"B",3,["二"],""],
-    [12,"B",4,["右"],""],
-    [13,"B",5,["左"],"要確認: なぎと同じ左と判読。誤読の可能性"],
-    [14,"B",6,["中","投"],"要確認: 交代先が1(投)と判読"],
-    [15,"B",7,["捕","一"],""],
-    [16,"B",8,["三"],""],
-    [17,"B",9,["一","遊"],""],
-    [18,"B",10,["遊"],"要確認: 交代先が判読不能"],
+    [1,"T",1,["遊"],0,""],
+    [2,"T",2,["投"],0,""],
+    [3,"T",3,["左"],0,""],
+    [4,"T",4,["右"],0,""],
+    [5,"T",5,["二","三"],0,""],
+    [6,"T",6,["三"],0,"要確認: 交代先が判読不能"],
+    [7,"T",7,["一","二"],0,""],
+    [8,"T",8,["中","一"],1,"2回のしんのすけ出塁(2-3E)をE3=一塁手と判定。捕手(大人)のE2ならノーカウントに"],
+    [9,"B",1,["投","二"],0,""],
+    [10,"B",2,["左"],0,""],
+    [11,"B",3,["二"],0,""],
+    [12,"B",4,["右"],0,""],
+    [13,"B",5,["左"],0,"要確認: なぎと同じ左と判読。誤読の可能性"],
+    [14,"B",6,["中","投"],0,""],
+    [15,"B",7,["捕","一"],1,"2回のしゅうじ出塁(1-3E)をE3=一塁手と判定。投手のE1なら いっさ に修正を"],
+    [16,"B",8,["三"],0,""],
+    [17,"B",9,["一","遊"],2,"2回のけんご・じょう出塁(いずれもE6)を2回の遊撃=あきと判定"],
+    [18,"B",10,["遊"],0,"要確認: 交代先が判読不能"],
   ];
   return rows.map((r, i) => ({
     id: "g1_f" + i, gameId: "g1", playerId: "p" + r[0],
-    side: r[1], order: r[2], positions: r[3], errors: 0, note: r[4] || "",
+    side: r[1], order: r[2], positions: r[3], errors: r[4], note: r[5] || "",
   }));
 }
 
 function sampleData() {
   // 2026-07-26 紅白戦（林試の森）— 紙スコアブックのAI読み取り結果
   const players = [
-    "まなと","けんご","じょう","こうや","ありた","しゅうじ","はる","なつき",
+    "まなと","けんご","じょう","こうや","あらた","しゅうじ","はる","なつき",
     "りょうたろ","なぎ","きみと","だいち","こうだい","いっさ","いおり","しんのすけ","あき","なおや"
   ].map((name, i) => ({ id: "p" + (i + 1), name, number: null, bats: SEED_BATS["p" + (i + 1)] || "右" }));
   const games = [
@@ -423,10 +424,10 @@ function sampleData() {
     sb: r[7] || 0, cs: 0,
     side: i <= 11 ? "T" : "B", // 紅白戦: 1枚目のチーム=先攻(表)、2枚目=後攻(裏)
   }));
-  return { teamName: "不動パイレーツEチーム", players, games, atBats, fielding: seedFielding(), dataRev: DATA_REV };
+  return { teamName: "不動パイレーツEチーム", players, games, atBats, fielding: seedFielding(), pitching: [], dataRev: DATA_REV };
 }
 
-const DATA_REV = 5;
+const DATA_REV = 6;
 function migrate(s) {
   const rev = s.dataRev || 1;
   if (rev >= DATA_REV) return s;
@@ -465,6 +466,24 @@ function migrate(s) {
     }
     for (const p of s.players || []) {
       if (p.bats === undefined && /^p([1-9]|1[0-8])$/.test(p.id || "")) p.bats = SEED_BATS[p.id] || "右";
+    }
+  }
+  if (rev < 6) {
+    // v6: 選手名修正(ありた→あらた)、失策の帰属判定、投手成績の器を追加
+    const p5 = (s.players || []).find(p => p.id === "p5");
+    if (p5 && p5.name === "ありた") p5.name = "あらた";
+    if (!Array.isArray(s.pitching)) s.pitching = [];
+    const fdFix = {
+      g1_f1: { note: "" }, g1_f8: { note: "" }, g1_f13: { note: "" }, // 「投」は子どもの守備位置として確定
+      g1_f7:  { errors: 1, note: "2回のしんのすけ出塁(2-3E)をE3=一塁手と判定。捕手(大人)のE2ならノーカウントに" },
+      g1_f14: { errors: 1, note: "2回のしゅうじ出塁(1-3E)をE3=一塁手と判定。投手のE1なら いっさ に修正を" },
+      g1_f16: { errors: 2, note: "2回のけんご・じょう出塁(いずれもE6)を2回の遊撃=あきと判定" },
+    };
+    for (const f of s.fielding || []) {
+      const fix = fdFix[f.id];
+      if (!fix) continue;
+      if (fix.errors !== undefined && (f.errors || 0) === 0) f.errors = fix.errors;
+      f.note = fix.note;
     }
   }
   s.dataRev = DATA_REV;
@@ -596,6 +615,52 @@ const absOfGame = gid => state.atBats.filter(a => a.gameId === gid);
 const absOfPlayer = pid => state.atBats.filter(a => a.playerId === pid);
 const fieldingOfGame = gid => (state.fielding || []).filter(f => f.gameId === gid);
 const fieldingOfPlayer = pid => (state.fielding || []).filter(f => f.playerId === pid);
+const pitchingOfGame = gid => (state.pitching || []).filter(x => x.gameId === gid);
+const pitchingOfPlayer = pid => (state.pitching || []).filter(x => x.playerId === pid);
+
+/* ── 守備率 ──
+   守備位置が複数ある場合、1個目=1回・2個目=2回…として扱う。
+   守備機会は「相手打者の打球アウトでその守備位置に飛んだもの＋自分の失策」で推定
+   （表裏両方を記録した紅白戦のみ自動計算可。通常試合は「編集」で守備機会を手入力） */
+const BATTED_OUTS = new Set(["ゴロ", "フライ", "ライナー", "併殺打", "犠打", "犠飛"]);
+function posAtInning(f, inn) {
+  const ps = f.positions || [];
+  if (!ps.length) return null;
+  return ps[Math.min(Math.max(inn || 1, 1), ps.length) - 1];
+}
+function autoSuccesses(f) {
+  if (!f.side) return 0;
+  return state.atBats.filter(a =>
+    a.gameId === f.gameId && a.side && a.side !== f.side &&
+    BATTED_OUTS.has(a.result) && a.direction &&
+    posAtInning(f, a.inning) === a.direction
+  ).length;
+}
+function fieldingSummary(fds) {
+  let err = 0, ch = 0;
+  for (const f of fds) {
+    const e = f.errors || 0;
+    err += e;
+    ch += (f.chances != null ? f.chances : autoSuccesses(f) + e);
+  }
+  return { err, ch, pct: ch > 0 ? (ch - err) / ch : null };
+}
+
+/* ── 投手成績 ── 投球回はアウト数(outs)で保持。表示は「2」「1.2」形式(.1=1/3回) */
+const fmtIP = outs => { const o = outs || 0; return Math.floor(o / 3) + (o % 3 ? "." + (o % 3) : ""); };
+const parseIP = str => {
+  const m = /^(\d+)(?:[.．]([12]))?$/.exec(String(str || "").trim());
+  return m ? parseInt(m[1], 10) * 3 + (m[2] ? parseInt(m[2], 10) : 0) : 0;
+};
+function pitchingSummary(pcs) {
+  const t = { g: pcs.length, outs: 0, h: 0, so: 0, bb: 0, r: 0, er: 0, hasEr: false };
+  for (const pc of pcs) {
+    t.outs += pc.outs || 0; t.h += pc.h || 0; t.so += pc.so || 0; t.bb += pc.bb || 0; t.r += pc.r || 0;
+    if (pc.er != null) { t.er += pc.er; t.hasEr = true; }
+  }
+  t.era = (t.hasEr && t.outs > 0) ? (t.er * 7) / (t.outs / 3) : null; // 7回換算
+  return t;
+}
 const fmtDate = d => d ? d.replace(/^\d{4}-/, "").replace("-", "/") : "";
 // 紅白戦など対外試合でないものは「vs」を付けない
 const vsLabel = opp => { const o = String(opp || "不明"); return o.includes("紅白戦") ? o : "vs " + o; };
@@ -820,8 +885,11 @@ function viewPlayer(pid) {
   const s = calcStats(abs);
   const games = sortedGames().filter(g => abs.some(a => a.gameId === g.id));
   const fds = fieldingOfPlayer(pid);
-  const posCount = {}; let fdErr = 0;
-  fds.forEach(f => { (f.positions || []).forEach(x => { posCount[x] = (posCount[x] || 0) + 1; }); fdErr += f.errors || 0; });
+  const posCount = {};
+  fds.forEach(f => { (f.positions || []).forEach(x => { posCount[x] = (posCount[x] || 0) + 1; }); });
+  const fsum = fieldingSummary(fds);
+  const pcs = pitchingOfPlayer(pid);
+  const psum = pitchingSummary(pcs);
   return `
   <button class="btn small back" id="back-stats">← 成績一覧へ</button>
   <div class="hdr-flex" style="margin-bottom:10px">
@@ -846,16 +914,26 @@ function viewPlayer(pid) {
         ["四球", s.bb], ["死球", s.hbp], ["犠打", s.sac], ["犠飛", s.sf],
         ["盗塁", s.sb], ["盗塁死", s.cs], ["併殺打", s.dp],
         ["出塁率", fmtRate(s.obp)], ["長打率", fmtRate(s.slg)], ["OPS", fmtRate(s.ops)],
-        ["失策", fdErr],
+        ["失策", fsum.err], ["守備率", fmtRate(fsum.pct)],
       ].map(([l, v]) => `<div class="sg-cell"><span class="sg-l">${l}</span><span class="sg-v num">${v}</span></div>`).join("")}
     </div>
   </div>
   <div class="card"><h2>守備</h2>
     ${fds.length ? `
       <div class="chips">${Object.entries(posCount).map(([pos, n]) => `<span class="chip" style="pointer-events:none">${esc(pos)}<span class="num" style="margin-left:4px;opacity:.7">×${n}</span></span>`).join("")}</div>
-      <div class="subtle num" style="margin-top:8px">失策 ${fdErr} ・ 守備記録 ${fds.length}試合分</div>`
+      <div class="subtle num" style="margin-top:8px">守備率 ${fmtRate(fsum.pct)} ・ 守備機会 ${fsum.ch} ・ 失策 ${fsum.err}（${fds.length}試合分）</div>`
     : `<div class="empty">守備の記録はまだありません（各試合ページの「スタメン・守備」から登録できます）</div>`}
   </div>
+  ${pcs.length ? `<div class="card"><h2>投手成績</h2>
+    <div class="statgrid">
+      ${[
+        ["登板", psum.g], ["投球回", fmtIP(psum.outs)], ["被安打", psum.h], ["奪三振", psum.so],
+        ["与四死球", psum.bb], ["失点", psum.r], ["自責点", psum.hasEr ? psum.er : "—"],
+        ["防御率", psum.era !== null ? psum.era.toFixed(2) : "—"],
+      ].map(([l, v]) => `<div class="sg-cell"><span class="sg-l">${l}</span><span class="sg-v num">${v}</span></div>`).join("")}
+    </div>
+    <div class="chart-note">防御率は7回換算</div>
+  </div>` : ""}
   <div class="card"><h2>打球方向</h2>${sprayChartSVG(abs)}</div>
   <div class="card"><h2>打率の推移</h2>${trendChartSVG(pid)}</div>
   <div class="card"><h2>結果の内訳</h2>${resultBreakdownHTML(abs)}</div>
@@ -908,6 +986,24 @@ function lineupCardHTML(g, side) {
       }).join("")}</tbody>
     </table></div>` : `<div class="empty">まだ登録がありません</div>`}
     <button class="btn small" data-add-fd="${side || ""}" data-add-fd-game="${g.id}" style="margin-top:8px">＋ 選手を追加</button>
+  </div>`;
+}
+
+function pitchingCardHTML(g, split) {
+  const rows = pitchingOfGame(g.id);
+  return `<div class="card"><h2>投手成績</h2>
+    ${rows.length ? `<div class="tbl-wrap"><table class="lineup">
+      <thead><tr>${split ? "<th></th>" : ""}<th>投手</th><th>回</th><th>被安</th><th>三振</th><th>四死</th><th>失点</th><th></th></tr></thead>
+      <tbody>${rows.map(pc => {
+        const p = playerOf(pc.playerId);
+        return `<tr>${split ? `<td>${pc.side === "T" ? "表" : pc.side === "B" ? "裏" : ""}</td>` : ""}
+          <td class="lu-name">${esc(p ? p.name : "?")}</td>
+          <td class="num">${fmtIP(pc.outs)}</td><td class="num">${pc.h || 0}</td><td class="num">${pc.so || 0}</td><td class="num">${pc.bb || 0}</td><td class="num">${pc.r || 0}</td>
+          <td style="text-align:right;white-space:nowrap"><button class="icon-btn" data-edit-pc="${pc.id}">編集</button><button class="icon-btn del" data-del-pc="${pc.id}">削除</button></td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>` : `<div class="empty">登板の記録はまだありません</div>`}
+    <button class="btn small" data-add-pc="${g.id}" data-pc-split="${split ? "1" : ""}" style="margin-top:8px">＋ 投手を追加</button>
   </div>`;
 }
 
@@ -994,6 +1090,7 @@ function viewGame(gid) {
     </div>
   </div>
   ${split ? lineupCardHTML(g, "T") + lineupCardHTML(g, "B") : lineupCardHTML(g, null)}
+  ${pitchingCardHTML(g, split)}
   ${inningsHTML}`;
 }
 
@@ -1134,6 +1231,9 @@ function buildPrompt() {
   ],
   "fielding": [
     { "player": "選手名", "order": 打順, "positions": ["守備位置"], "errors": 失策数, "bats": "右" または "左", "note": "" }
+  ],
+  "pitching": [
+    { "player": "選手名", "ip": "投球回(例 \\"2\\" や \\"1.2\\"=1回2/3)", "h": 被安打, "so": 奪三振, "bb": 与四死球, "r": 失点, "er": 自責点または null, "note": "" }
   ]
 }
 
@@ -1144,7 +1244,8 @@ function buildPrompt() {
 - 盗塁: ダイヤモンドの辺に沿った黒の「S」「S'」記号は盗塁。その打者の sb に個数を入れる（なければ0）。盗塁でタッチアウト（TO等）になった場合は cs に個数
 - 守備: 「シート」「先発」列の数字は守備位置（1=投 2=捕 3=一 4=二 5=三 6=遊 7=左 8=中 9=右）。fielding の positions に漢字で入れる。数字が2つ並ぶ場合は途中交代なので順に並べる
 - 「打ち方」列の R は bats:"右"、L は bats:"左"
-- 失策: 守備中のエラー（E記号が相手打者の枠に付く）が誰のものか特定できる場合のみ errors に計上。不明なら0のままにして note に書く
+- 失策: 守備中のエラー（E記号が相手打者の枠に付く）が誰のものか特定できる場合のみ errors に計上。守備位置が2つある選手は1個目=1回・2個目=2回として、エラーが起きた回の守備位置と照合する。不明なら0のままにして note に書く
+- 投手成績の欄（投球回・被安打・奪三振・四死球・失点など）があれば pitching に読み取る。子どもの投手のみ対象（大人が投げた場合は含めない）。なければ空配列でよい
 - 安打の赤線がダイヤモンドの辺を何本なぞっているかで単打/二塁打/三塁打を判定する（1辺=単打、2辺=二塁打、3辺=三塁打、全周+打撃での生還=本塁打）
 - 読み取りに自信がない打席は note に「要確認: 理由」を書く（自信があれば空文字）
 - 選手名は次の登録名簿の表記に合わせる: ${roster || "（名簿未登録。読み取った名前をそのまま使う）"}
@@ -1187,9 +1288,21 @@ function parseImport(text) {
     row.note = typeof row.note === "string" ? row.note : "";
     return row;
   }).filter(Boolean) : [];
+  const pitching = Array.isArray(data.pitching) ? data.pitching.map((x, i) => {
+    const row = { ...x };
+    if (!row.player) { warns.push(`投手${i + 1}件目: player（選手名）がないため無視しました`); return null; }
+    row.outs = parseIP(row.ip);
+    row.h = Math.max(0, parseInt(row.h, 10) || 0);
+    row.so = Math.max(0, parseInt(row.so, 10) || 0);
+    row.bb = Math.max(0, parseInt(row.bb, 10) || 0);
+    row.r = Math.max(0, parseInt(row.r, 10) || 0);
+    row.er = (row.er == null || row.er === "") ? null : Math.max(0, parseInt(row.er, 10) || 0);
+    row.side = (row.side === "表" || row.side === "T") ? "T" : (row.side === "裏" || row.side === "B") ? "B" : undefined;
+    return row;
+  }).filter(Boolean) : [];
   const knownNames = new Set(state.players.map(p => p.name));
-  const newPlayers = [...new Set([...abs.map(a => a.player), ...fielding.map(f => f.player)])].filter(n => !knownNames.has(n));
-  return { game: g, abs, fielding, warns, newPlayers };
+  const newPlayers = [...new Set([...abs.map(a => a.player), ...fielding.map(f => f.player), ...pitching.map(x => x.player)])].filter(n => !knownNames.has(n));
+  return { game: g, abs, fielding, pitching, warns, newPlayers };
 }
 
 function doImport(pv) {
@@ -1217,6 +1330,14 @@ function doImport(pv) {
       order: f.order, positions: f.positions, errors: f.errors, note: f.note || "",
     });
   }
+  if (!state.pitching) state.pitching = [];
+  for (const x of pv.pitching || []) {
+    const pl = byName[x.player]; if (!pl) continue;
+    state.pitching.push({
+      id: uid("pc"), gameId: gid, playerId: pl.id, side: x.side,
+      outs: x.outs, h: x.h, so: x.so, bb: x.bb, r: x.r, er: x.er,
+    });
+  }
   for (const a of pv.abs) {
     state.atBats.push({
       id: uid("ab"), gameId: gid, playerId: byName[a.player].id,
@@ -1230,13 +1351,31 @@ function doImport(pv) {
 
 function editFieldingPrompts(f) {
   const ord = prompt("打順（数字）", f.order || ""); if (ord === null) { save(); render(); return; }
-  const pos = prompt("守備位置（例: 遊 ／ 途中交代があれば 遊→三）", (f.positions || []).join("→")); if (pos === null) { save(); render(); return; }
+  const pos = prompt("守備位置（例: 遊 ／ 途中交代があれば 遊→三。1個目=1回、2個目=2回）", (f.positions || []).join("→")); if (pos === null) { save(); render(); return; }
   const err = prompt("失策数", f.errors || 0); if (err === null) { save(); render(); return; }
+  const ch = prompt("守備機会（空欄=打球記録から自動計算）", f.chances != null ? f.chances : ""); if (ch === null) { save(); render(); return; }
   f.order = parseInt(ord, 10) || 0;
   f.positions = pos.split(/[→,、\s\/]+/).filter(Boolean).filter(x => DIRS.includes(x));
   f.errors = Math.max(0, parseInt(err, 10) || 0);
+  f.chances = ch.trim() === "" ? null : Math.max(0, parseInt(ch, 10) || 0);
   f.note = "";
   save(); render(); showToast("守備情報を保存しました");
+}
+
+function editPitchingPrompts(pc) {
+  const ip = prompt("投球回（例: 2 ／ 1.2 は1回2/3）", fmtIP(pc.outs)); if (ip === null) { save(); render(); return; }
+  const h = prompt("被安打", pc.h || 0); if (h === null) { save(); render(); return; }
+  const so = prompt("奪三振", pc.so || 0); if (so === null) { save(); render(); return; }
+  const bb = prompt("与四死球", pc.bb || 0); if (bb === null) { save(); render(); return; }
+  const r = prompt("失点", pc.r || 0); if (r === null) { save(); render(); return; }
+  const er = prompt("自責点（不明なら空欄）", pc.er != null ? pc.er : ""); if (er === null) { save(); render(); return; }
+  pc.outs = parseIP(ip);
+  pc.h = Math.max(0, parseInt(h, 10) || 0);
+  pc.so = Math.max(0, parseInt(so, 10) || 0);
+  pc.bb = Math.max(0, parseInt(bb, 10) || 0);
+  pc.r = Math.max(0, parseInt(r, 10) || 0);
+  pc.er = er.toString().trim() === "" ? null : Math.max(0, parseInt(er, 10) || 0);
+  save(); render(); showToast("投手成績を保存しました");
 }
 
 /* ───────────────────────── events ───────────────────────── */
@@ -1300,6 +1439,33 @@ function afterRender() {
     const f = { id: uid("f"), gameId: b.dataset.addFdGame, playerId: pl.id, side: b.dataset.addFd || undefined, order: 0, positions: [], errors: 0, note: "" };
     state.fielding.push(f);
     editFieldingPrompts(f);
+  }));
+  /* pitching rows */
+  main.querySelectorAll("[data-edit-pc]").forEach(b => b.addEventListener("click", () => {
+    const pc = (state.pitching || []).find(x => x.id === b.dataset.editPc); if (!pc) return;
+    editPitchingPrompts(pc);
+  }));
+  main.querySelectorAll("[data-del-pc]").forEach(b => b.addEventListener("click", () => {
+    const pc = (state.pitching || []).find(x => x.id === b.dataset.delPc); if (!pc) return;
+    const p = playerOf(pc.playerId);
+    if (!confirm(`${p ? p.name : ""} の登板記録を削除しますか?（全員に反映されます）`)) return;
+    state.pitching = state.pitching.filter(x => x.id !== pc.id);
+    save(); render(); showToast("削除しました");
+  }));
+  main.querySelectorAll("[data-add-pc]").forEach(b => b.addEventListener("click", () => {
+    const name = prompt("投手の選手名"); if (!name) return;
+    const q = name.trim();
+    const pl = state.players.find(p => p.name === q) || state.players.find(p => p.name.includes(q));
+    if (!pl) { alert("選手が見つかりません。先に「打席入力」タブの「＋選手追加」で登録してください。"); return; }
+    let side;
+    if (b.dataset.pcSplit) {
+      const sv = prompt("どちらのチームの投手ですか？（表 / 裏）", "表"); if (sv === null) return;
+      side = sv.includes("裏") ? "B" : "T";
+    }
+    if (!state.pitching) state.pitching = [];
+    const pc = { id: uid("pc"), gameId: b.dataset.addPc, playerId: pl.id, side, outs: 0, h: 0, so: 0, bb: 0, r: 0, er: null };
+    state.pitching.push(pc);
+    editPitchingPrompts(pc);
   }));
   /* PA row edit/delete (player & game views) */
   main.querySelectorAll("[data-edit-ab]").forEach(b => b.addEventListener("click", e => {
@@ -1385,7 +1551,7 @@ function afterRender() {
     const checks = res.abs.filter(a => a.note).length;
     out.innerHTML = `<div class="import-preview">
       <h3>${esc(res.game.date || "日付不明")} vs ${esc(res.game.opponent || "不明")}（${parseInt(res.game.scoreFor, 10) || 0} - ${parseInt(res.game.scoreAgainst, 10) || 0}）</h3>
-      <div style="font-size:13.5px">打席 ${res.abs.length} 件${res.fielding && res.fielding.length ? `・守備 ${res.fielding.length} 件` : ""}${res.newPlayers.length ? `・新しい選手 ${res.newPlayers.length} 名を登録（${esc(res.newPlayers.join("、"))}）` : ""}${checks ? `・<span class="warn-text">要確認 ${checks} 件</span>` : ""}</div>
+      <div style="font-size:13.5px">打席 ${res.abs.length} 件${res.fielding && res.fielding.length ? `・守備 ${res.fielding.length} 件` : ""}${res.pitching && res.pitching.length ? `・投手 ${res.pitching.length} 件` : ""}${res.newPlayers.length ? `・新しい選手 ${res.newPlayers.length} 名を登録（${esc(res.newPlayers.join("、"))}）` : ""}${checks ? `・<span class="warn-text">要確認 ${checks} 件</span>` : ""}</div>
       ${res.warns.length ? `<div class="warn-text" style="margin-top:4px">${esc(res.warns.join(" / "))}</div>` : ""}
       <button class="btn primary" id="do-import" style="margin-top:10px">この内容で取り込む</button>
     </div>`;
